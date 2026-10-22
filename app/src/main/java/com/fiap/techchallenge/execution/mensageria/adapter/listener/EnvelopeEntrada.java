@@ -4,7 +4,6 @@ import tools.jackson.databind.JsonNode;
 
 import java.util.UUID;
 
-/** Envelope das mensagens consumidas (EVENTOS.md). */
 public record EnvelopeEntrada(UUID eventId, String type, JsonNode payload) {
 
     public Long osId() {

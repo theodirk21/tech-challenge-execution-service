@@ -4,10 +4,7 @@ import com.fiap.techchallenge.execution.exception.ServicoBadStatusException;
 
 import java.time.LocalDateTime;
 
-/**
- * Execução de um tipo de serviço dentro de uma OS. Referencia a OS e o tipo de serviço apenas por id,
- * pois esses dados pertencem ao os-service e ao billing-service.
- */
+
 public class Servico {
 
     private Long id;

@@ -9,7 +9,6 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.Clock;
 import java.time.LocalDateTime;
 
-/** Grava o evento na outbox; participa da transação do caso de uso, então só é publicado se ela confirmar. */
 @Component
 public class EventoSaidaGatewayImpl implements EventoSaidaGateway {
 

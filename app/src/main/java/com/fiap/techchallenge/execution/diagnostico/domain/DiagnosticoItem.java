@@ -2,7 +2,6 @@ package com.fiap.techchallenge.execution.diagnostico.domain;
 
 import com.fiap.techchallenge.execution.exception.BadRequestException;
 
-/** Item (peça ou serviço) apontado no diagnóstico de uma OS; refId aponta para o catálogo de outro serviço. */
 public class DiagnosticoItem {
 
     private Long id;
