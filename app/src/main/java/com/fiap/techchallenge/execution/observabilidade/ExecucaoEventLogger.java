@@ -9,10 +9,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.Instant;
 
-/**
- * Logs estruturados (JSON) dos eventos da fila de execução, no mesmo padrão do OrdemDeServicoEventLogger.
- * O osId funciona como correlationId entre os serviços da saga.
- */
+
 @Component
 @Slf4j
 public class ExecucaoEventLogger {

@@ -13,10 +13,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/**
- * Valida o JWT emitido pelo servico de autenticacao. Este servico nao possui tabela de usuarios:
- * login e role vem exclusivamente das claims do token.
- */
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 

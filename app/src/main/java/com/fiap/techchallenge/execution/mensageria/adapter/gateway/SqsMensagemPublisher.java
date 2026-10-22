@@ -10,7 +10,6 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.time.ZoneOffset;
 
-/** Monta o envelope do contrato (EVENTOS.md) e envia para a fila de saída. eventId é o id da linha da outbox. */
 @Component
 public class SqsMensagemPublisher implements MensagemPublisher {
 
