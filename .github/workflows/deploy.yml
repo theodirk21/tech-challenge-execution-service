@@ -1,0 +1,195 @@
+name: CD - Build, Push & Deploy EKS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-eks
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  JAVA_VERSION: "21"
+  CLUSTER_NAME: tech-challenge
+  NAMESPACE: tech-challenge
+  ECR_REPOSITORY: execution-service
+
+jobs:
+  test:
+    name: Testes e Cobertura (JaCoCo)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "corretto"
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: "gradle"
+
+      - name: Executar Testes e Verificar Cobertura
+        run: ./gradlew :app:test :app:jacocoTestReport :app:jacocoTestCoverageVerification --no-daemon
+
+      - name: Publicar Relatórios
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-and-coverage-reports
+          path: |
+            app/build/test-results/test
+            app/build/reports/jacoco/test/html
+          retention-days: 7
+
+  deploy:
+    name: Build, Push ECR & Deploy EKS
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "corretto"
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: "gradle"
+
+      - name: Configurar Credenciais AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login no Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Garantir Repositório ECR
+        run: |
+          aws ecr describe-repositories --repository-names "${ECR_REPOSITORY}" > /dev/null 2>&1 || \
+            aws ecr create-repository --repository-name "${ECR_REPOSITORY}" --image-scanning-configuration scanOnPush=true
+
+      - name: Garantir Filas SQS (com DLQ)
+        run: |
+          for q in execution-os-criada execution-pagamento-confirmado execution-os-cancelada execution-pagamento-estornado; do
+            aws sqs create-queue --queue-name "${q}-dlq" > /dev/null
+            DLQ_URL=$(aws sqs get-queue-url --queue-name "${q}-dlq" --query QueueUrl --output text)
+            DLQ_ARN=$(aws sqs get-queue-attributes --queue-url "$DLQ_URL" --attribute-names QueueArn --query Attributes.QueueArn --output text)
+            REDRIVE="{\"deadLetterTargetArn\":\"${DLQ_ARN}\",\"maxReceiveCount\":\"5\"}"
+            aws sqs create-queue --queue-name "$q" \
+              --attributes "$(jq -nc --arg r "$REDRIVE" '{RedrivePolicy:$r}')" > /dev/null
+          done
+          aws sqs create-queue --queue-name execution-events > /dev/null
+
+      - name: Build e Push da Imagem Docker
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}"
+          echo "Compilando e publicando imagem: ${IMAGE_URI}:${IMAGE_TAG}"
+
+          docker build \
+            --platform linux/amd64 \
+            -t "${IMAGE_URI}:${IMAGE_TAG}" \
+            -t "${IMAGE_URI}:latest" \
+            -f app/Dockerfile .
+
+          docker push "${IMAGE_URI}:${IMAGE_TAG}"
+          docker push "${IMAGE_URI}:latest"
+
+      - name: Configurar Kubeconfig para o Cluster EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ env.CLUSTER_NAME }}
+
+      - name: Garantir Namespace
+        run: kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Aplicar ConfigMap
+        run: kubectl apply -f k8s/configmap.yaml
+
+      - name: Criar ou Atualizar Secrets no Kubernetes
+        env:
+          DB_SECRET_ID: ${{ vars.DB_SECRET_ID }}
+        run: |
+          # Credenciais do banco lidas do AWS Secrets Manager; JWT_SECRET segue vindo dos secrets do GitHub
+          DB_JSON=$(aws secretsmanager get-secret-value --secret-id "$DB_SECRET_ID" --query SecretString --output text)
+          DB_USER=$(echo "$DB_JSON" | jq -r .username)
+          DB_PASSWORD=$(echo "$DB_JSON" | jq -r .password)
+          DB_HOST=$(echo "$DB_JSON" | jq -r .host)
+          DB_PORT=$(echo "$DB_JSON" | jq -r .port)
+          DB_NAME=$(echo "$DB_JSON" | jq -r .dbname)
+
+          echo "::add-mask::$DB_PASSWORD"
+
+          for v in DB_USER DB_PASSWORD DB_HOST DB_PORT DB_NAME; do
+            if [ -z "${!v}" ] || [ "${!v}" = "null" ]; then
+              echo "::error::Valor $v vazio nos secrets do Secrets Manager."
+              exit 1
+            fi
+          done
+
+          kubectl create secret generic execution-secrets \
+            --namespace=${{ env.NAMESPACE }} \
+            --from-literal=SPRING_DATASOURCE_URL="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require" \
+            --from-literal=SPRING_DATASOURCE_USERNAME="${DB_USER}" \
+            --from-literal=SPRING_DATASOURCE_PASSWORD="${DB_PASSWORD}" \
+            --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            --from-literal=AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            --from-literal=AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            --from-literal=AWS_SESSION_TOKEN="${{ secrets.AWS_SESSION_TOKEN }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+      - name: Injetar Imagem e Aplicar Manifestos no EKS
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_FULL="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          sed -i "s|IMAGE_PLACEHOLDER|${IMAGE_FULL}|g" k8s/deployment.yaml
+
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/hpa.yaml
+          kubectl apply -f k8s/pod-disruption-budget.yaml
+
+      - name: Recriar Pods em deploy manual
+        if: github.event_name == 'workflow_dispatch'
+        run: kubectl rollout restart deployment/execution-service -n ${{ env.NAMESPACE }}
+
+      - name: Verificar Rollout do Deployment
+        run: |
+          if ! kubectl rollout status deployment/execution-service \
+            -n ${{ env.NAMESPACE }} \
+            --timeout=15m; then
+            echo "::error::O rollout não estabilizou. Consulte HPA, Pods e eventos abaixo para identificar escala ou capacidade insuficiente."
+            kubectl get hpa -n ${{ env.NAMESPACE }}
+            kubectl get deployment execution-service -n ${{ env.NAMESPACE }}
+            kubectl get pods -n ${{ env.NAMESPACE }} -l app=execution-service -o wide
+            kubectl get events -n ${{ env.NAMESPACE }} --sort-by=.lastTimestamp
+            exit 1
+          fi
+
+      - name: Exibir Endpoint do Load Balancer
+        run: |
+          echo "=========================================================="
+          echo "Aguardando endpoint do LoadBalancer..."
+          sleep 10
+          LB_HOSTNAME=$(kubectl get svc execution-service-service \
+            -n ${{ env.NAMESPACE }} \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "Pendente")
+          echo "DNS do Load Balancer: http://${LB_HOSTNAME}"
+          echo "Swagger UI: http://${LB_HOSTNAME}/swagger-ui/index.html"
+          echo "=========================================================="

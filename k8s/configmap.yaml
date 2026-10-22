@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: tech-challenge
+data:
+  DB_NAME: "execution"
+  SPRING_JPA_SHOW_SQL: "false"
+  SPRING_FLYWAY_ENABLED: "true"
+  SPRING_FLYWAY_SCHEMAS: "execution"
+  SWAGGER_BASE_PATH: "/Prod"
+  AWS_REGION: "us-east-1"

@@ -1,0 +1,65 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: execution_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: execution
+    ports:
+      - "5434:5432"
+    volumes:
+      - execution_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d execution"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Emula o Amazon SQS localmente; as filas são criadas por localstack/init-sqs.sh
+  localstack:
+    image: localstack/localstack:3
+    container_name: execution_localstack
+    environment:
+      SERVICES: sqs
+      AWS_DEFAULT_REGION: us-east-1
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./localstack/init-sqs.sh:/etc/localstack/init/ready.d/init-sqs.sh
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name execution-events"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  # Aplicacao compilada pelo Dockerfile (para rodar so o banco e o SQS, use: docker compose up -d db localstack)
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: execution_app
+    depends_on:
+      db:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/execution
+      DB_USER: postgres
+      DB_PASSWORD: admin
+      SQS_ENDPOINT: http://localstack:4566
+    ports:
+      - "8080:8080"
+  sonarqube:
+    image: sonarqube:community
+    container_name: execution_sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    profiles:
+      - tools
+
+volumes:
+  execution_pg_data:
