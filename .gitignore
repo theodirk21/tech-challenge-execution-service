@@ -7,7 +7,7 @@ bin/
 **/bin/
 !**/src/main/**/build/
 !**/src/test/**/build/
-localstack/
+localstack/volume/
 
 # =============================================================================
 # Java
