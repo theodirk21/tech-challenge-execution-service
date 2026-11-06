@@ -4,26 +4,26 @@ import com.fiap.techchallenge.execution.mensageria.domain.OutboxEvent;
 import com.fiap.techchallenge.execution.mensageria.usecase.MensagemPublisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import software.amazon.awssdk.services.sqs.SqsAsyncClient;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.time.ZoneOffset;
 
 @Component
-public class SqsMensagemPublisher implements MensagemPublisher {
+public class SnsMensagemPublisher implements MensagemPublisher {
 
     private static final int VERSAO = 1;
 
-    private final SqsAsyncClient sqs;
+    private final SnsClient sns;
     private final JsonMapper mapper;
-    private final String nomeDaFila;
-    private volatile String urlDaFila;
+    private final String arnDoTopico;
 
-    public SqsMensagemPublisher(SqsAsyncClient sqs, JsonMapper mapper, @Value("${execution.sqs.saida}") String nomeDaFila) {
-        this.sqs = sqs;
+    public SnsMensagemPublisher(SnsClient sns, JsonMapper mapper, @Value("${execution.sns.topico-arn}") String arnDoTopico) {
+        this.sns = sns;
         this.mapper = mapper;
-        this.nomeDaFila = nomeDaFila;
+        this.arnDoTopico = arnDoTopico;
     }
 
     @Override
@@ -37,13 +37,10 @@ public class SqsMensagemPublisher implements MensagemPublisher {
         envelope.set("payload", mapper.readTree(evento.getPayload()));
 
         String corpo = mapper.writeValueAsString(envelope);
-        sqs.sendMessage(r -> r.queueUrl(urlDaFila()).messageBody(corpo)).join();
-    }
-
-    private String urlDaFila() {
-        if (urlDaFila == null) {
-            urlDaFila = sqs.getQueueUrl(r -> r.queueName(nomeDaFila)).join().queueUrl();
-        }
-        return urlDaFila;
+        // O atributo "type" permite que os assinantes filtrem eventos com filter policy
+        sns.publish(r -> r.topicArn(arnDoTopico)
+                .message(corpo)
+                .messageAttributes(java.util.Map.of("type", MessageAttributeValue.builder()
+                        .dataType("String").stringValue(evento.getType()).build())));
     }
 }

@@ -2,7 +2,7 @@
 
 Serviço de **execução** do **Tech Challenge — Fase 4**.
 
-Um dos três microsserviços (`os-service`, `billing-service` e `execution-service`) em que o monolito da oficina mecânica foi dividido. Cuida da fila de execução das ordens de serviço, do diagnóstico, da reserva de peças em estoque e dos serviços executados. Escrito em **Spring Boot (Java 21)**, executado como workload no **Amazon EKS**, com autenticação stateless via JWT, banco **PostgreSQL** próprio (Amazon RDS) e comunicação assíncrona por **Amazon SQS**.
+Um dos três microsserviços (`os-service`, `billing-service` e `execution-service`) em que o monolito da oficina mecânica foi dividido. Cuida da fila de execução das ordens de serviço, do diagnóstico, da reserva de peças em estoque e dos serviços executados. Escrito em **Spring Boot (Java 21)**, executado como workload no **Amazon EKS**, com autenticação stateless via JWT, banco **PostgreSQL** próprio (Amazon RDS) e comunicação assíncrona por **Amazon SQS** (entrada) e **Amazon SNS** (saída).
 
 ---
 
@@ -11,7 +11,7 @@ Um dos três microsserviços (`os-service`, `billing-service` e `execution-servi
 - Java 21 (Amazon Corretto)
 - Spring Boot 4.0.5 (Spring MVC, Spring Data JPA, Spring Security, Spring Actuator)
 - PostgreSQL 16 / Flyway (1 migration, schema `execution`)
-- Amazon SQS — Spring Cloud AWS 4.0.2 (LocalStack em desenvolvimento)
+- Amazon SQS (entrada) e Amazon SNS (saída) — Spring Cloud AWS 4.0.2 (LocalStack em desenvolvimento)
 - JWT — JJWT (`io.jsonwebtoken:jjwt`), assinatura HMAC-SHA256
 - SpringDoc OpenAPI 3 (Swagger UI)
 - Testcontainers (PostgreSQL e LocalStack), JaCoCo e SonarQube
@@ -26,7 +26,7 @@ Um dos três microsserviços (`os-service`, `billing-service` e `execution-servi
 ```
 .github/workflows/
 ├── pr.yml          CI: testes, cobertura JaCoCo e build check da imagem Docker
-└── deploy.yml      CD: testes, ECR, filas SQS e deploy no EKS via kubectl
+└── deploy.yml      CD: testes, ECR, filas SQS, tópico SNS e deploy no EKS via kubectl
 app/
 ├── src/main/java/com/fiap/techchallenge/execution/
 │   ├── fila/              fila de execução (ItemFila) e casos de uso da saga
@@ -39,10 +39,13 @@ app/
 │   └── ExecutionServiceApplication.java
 ├── src/main/resources/
 │   ├── application.properties       configuração e variáveis de ambiente
-│   ├── application-prod.properties  perfil de produção (SQS real, sem LocalStack)
+│   ├── application-prod.properties  perfil de produção (SQS/SNS reais, sem LocalStack)
 │   ├── logback-spring.xml           logs JSON em produção, colorido em dev
 │   └── db/migration/                migration Flyway (V1)
-├── src/test/                        testes unitários, de integração e ponta a ponta
+├── src/test/
+│   ├── java/.../bdd/                steps e configuração do Cucumber (BDD)
+│   ├── resources/features/          cenários Gherkin (execucao.feature)
+│   └── ...                          testes unitários, de integração e ponta a ponta
 ├── build.gradle                     dependências, JaCoCo (mínimo 80%) e SonarQube
 └── Dockerfile                       multi-stage build para linux/amd64
 k8s/
@@ -51,9 +54,11 @@ k8s/
 ├── service.yaml                  Service LoadBalancer — AWS NLB, porta 80 → 8080
 ├── hpa.yaml                      HPA: 2 a 10 réplicas (CPU 70%, memória 80%)
 └── pod-disruption-budget.yaml    PDB: minAvailable 1
-localstack/init-sqs.sh            cria as filas SQS (com DLQ) no LocalStack
-docker-compose.yml                stack local: App + PostgreSQL 16 + LocalStack (SQS) + SonarQube
-EVENTOS.md                        contrato dos eventos trocados entre os serviços
+localstack/init-sqs.sh            cria as filas SQS (com DLQ) e o tópico SNS no LocalStack
+docker-compose.yml                stack local: App + PostgreSQL 16 + LocalStack (SQS/SNS) + SonarQube
+docs/
+├── EVENTOS.md                    contrato dos eventos trocados entre os serviços
+└── img.png                       evidência de cobertura (JaCoCo)
 ```
 
 Cada módulo de negócio segue a Clean Architecture do monolito: `domain` (regras puras) → `usecase` (interactors e gateways) → `adapter` (controllers e gateways) → `framework` (JPA).
@@ -63,25 +68,29 @@ Cada módulo de negócio segue a Clean Architecture do monolito: `domain` (regra
 ## Arquitetura
 
 ```
-   os-service ──OS_CRIADA / OS_CANCELADA──┐          ┌──DIAGNOSTICO_CONCLUIDO──► billing-service
-                                          ▼          │  EXECUCAO_FALHOU
-   billing-service ──PAGAMENTO_CONFIRMADO─┤  Amazon SQS (filas execution-*)
-                      PAGAMENTO_ESTORNADO ▼          │  EXECUCAO_INICIADA / FINALIZADA
-                                  ┌───────────────────────────────────┐   ESTOQUE_RESERVADO
-                                  │   Amazon EKS (ns: tech-challenge) │──► os-service
-                                  │                                   │
-                                  │   Pods Spring Boot                │
-                                  │   - Listeners SQS (idempotentes)  │
-                                  │   - Valida JWT (emitido no Lambda)│
-                                  │   - Regras da fila e do estoque   │
-                                  │   - Outbox + publisher            │
-                                  │   - Migrations Flyway             │
-                                  └──────────────────┬────────────────┘
-                                                     │
-                                  ┌──────────────────▼────────────────┐
-                                  │  Amazon RDS PostgreSQL 16         │
-                                  │  schema: execution                │
-                                  └───────────────────────────────────┘
+  os-service ──► OS_CRIADA, OS_CANCELADA ───────────┐
+  billing-service ──► PAGAMENTO_CONFIRMADO,         │   Amazon SQS
+                      PAGAMENTO_ESTORNADO ──────────┤   (filas execution-*, com DLQ)
+                                                    ▼
+                          ┌───────────────────────────────────┐
+                          │   Amazon EKS (ns: tech-challenge) │
+                          │                                   │
+                          │   Pods Spring Boot                │
+                          │   - Listeners SQS (idempotentes)  │
+                          │   - Valida JWT (emitido no Lambda)│
+                          │   - Regras da fila e do estoque   │
+                          │   - Outbox + publisher            │
+                          │   - Migrations Flyway             │
+                          └─────────┬───────────────┬─────────┘
+                                    │               │
+                  ┌─────────────────▼───┐   ┌───────▼───────────────────────┐
+                  │ Amazon RDS          │   │ Amazon SNS: tópico            │
+                  │ PostgreSQL 16       │   │ execution-events (fan-out)    │
+                  │ schema: execution   │   └───────┬───────────────┬───────┘
+                  └─────────────────────┘           │               │
+                                           fila do os-service  fila do billing-service
+                                           (DIAGNOSTICO_CONCLUIDO, ESTOQUE_RESERVADO, EXECUCAO_INICIADA,
+                                            EXECUCAO_FINALIZADA e EXECUCAO_FALHOU, filtrados por `type`)
 ```
 
 ### Saga (coreografada)
@@ -100,8 +109,8 @@ Não há orquestrador: cada serviço reage aos eventos dos outros. O `osId` é o
 ### Mensageria
 
 - **Entrada:** 4 filas, cada uma com DLQ (`maxReceiveCount=5`): `execution-os-criada`, `execution-pagamento-confirmado`, `execution-os-cancelada`, `execution-pagamento-estornado`. O `eventId` é gravado em `processed_event` na mesma transação, então reentregas são ignoradas.
-- **Saída:** os eventos são gravados na tabela `outbox_event` na mesma transação da mudança de estado e publicados na fila `execution-events` por um scheduler (`FOR UPDATE SKIP LOCKED`, seguro com várias réplicas). Isso garante que um evento só existe se a mudança também existiu.
-- O contrato completo (envelope e payloads) está em [`EVENTOS.md`](EVENTOS.md).
+- **Saída:** os eventos são gravados na tabela `outbox_event` na mesma transação da mudança de estado e publicados no tópico SNS `execution-events` por um scheduler (`FOR UPDATE SKIP LOCKED`, seguro com várias réplicas). Isso garante que um evento só existe se a mudança também existiu.
+- O contrato completo (envelope e payloads) está em [`docs/EVENTOS.md`](docs/EVENTOS.md).
 
 ### Dados entre serviços
 
@@ -123,13 +132,13 @@ Para desenvolvimento local, somente Docker é necessário.
 
 ### Docker Compose
 
-Sobe o PostgreSQL 16, o LocalStack (SQS com as filas criadas) e a aplicação compilada via `Dockerfile`:
+Sobe o PostgreSQL 16, o LocalStack (SQS e SNS com filas e tópico criados; a fila `execution-events-local` assina o tópico para inspeção) e a aplicação compilada via `Dockerfile`:
 
 ```bash
 docker compose up --build -d
 ```
 
-A API fica disponível em `http://localhost:8080` (PostgreSQL em `localhost:5434`, SQS em `localhost:4566`).
+A API fica disponível em `http://localhost:8080` (PostgreSQL em `localhost:5434`, SQS e SNS em `localhost:4566`).
 
 Para incluir o SonarQube na stack (porta 9000):
 
@@ -137,11 +146,11 @@ Para incluir o SonarQube na stack (porta 9000):
 docker compose --profile tools up -d
 ```
 
-O compose é **somente para desenvolvimento local**. Em produção não há compose: a imagem roda no EKS pelos manifestos de `k8s/`, com o perfil `prod`, que usa o SQS e o RDS reais.
+O compose é **somente para desenvolvimento local**. Em produção não há compose: a imagem roda no EKS pelos manifestos de `k8s/`, com o perfil `prod`, que usa o SQS, o SNS e o RDS reais.
 
 ### Gradle
 
-Sobe apenas o banco e o SQS e executa a aplicação com hot-reload:
+Sobe apenas o banco e o LocalStack (SQS/SNS) e executa a aplicação com hot-reload:
 
 ```bash
 docker compose up -d db localstack
@@ -159,6 +168,36 @@ Os testes de integração usam Testcontainers (PostgreSQL e LocalStack), então 
 ```
 
 Relatório HTML gerado em `app/build/reports/jacoco/test/html/index.html`. A build falha se a cobertura ficar abaixo de 80%.
+
+### Evidência de cobertura
+
+Medição do JaCoCo (`jacocoTestReport`) com a suíte completa: **116 testes (incluindo 3 cenários BDD), 0 falhas**.
+
+| Métrica | Cobertura |
+|---|---|
+| Instruções | 98,6% |
+| Linhas | 98,5% |
+| Branches | 93,3% |
+| Métodos | 96,4% |
+| Classes | 98,5% |
+
+A suíte tem testes unitários (domínio e casos de uso), de integração com Testcontainers (gateways, outbox e idempotência no PostgreSQL), de controllers (`@WebMvcTest` com JWT real) e um teste ponta a ponta com PostgreSQL e LocalStack (SQS e SNS). O relatório do JaCoCo também é publicado como artefato em cada execução do CI (`jacoco-report` no `pr.yml` e `test-and-coverage-reports` no `deploy.yml`).
+
+![Relatório de cobertura JaCoCo](docs/img.png)
+
+### BDD (Cucumber)
+
+Os cenários ficam em `app/src/test/resources/features/execucao.feature` (Gherkin em português) e sobem a aplicação completa com PostgreSQL e LocalStack via Testcontainers, usando JWT real, REST, filas SQS e tópico SNS:
+
+1. OS paga entra na fila, é executada e finaliza (publica `EXECUCAO_FINALIZADA`).
+2. Falta de estoque falha a execução sem reservar nada (publica `EXECUCAO_FALHOU` com `SEM_ESTOQUE`).
+3. Cancelamento da OS compensa a reserva de peças (estoque devolvido, status `CANCELADA`).
+
+```bash
+./gradlew :app:test --tests "*CucumberSuiteTest"
+```
+
+Relatório HTML em `app/build/reports/cucumber/cucumber.html`.
 
 ---
 
@@ -185,7 +224,8 @@ O flag `--platform linux/amd64` é obrigatório. Os nós do cluster EKS utilizam
 | `AWS_REGION` | `us-east-1` | Região da AWS |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` | `test` / `test` / — | Credenciais AWS (em produção, via Secret do Kubernetes) |
 | `SQS_OS_CRIADA`, `SQS_PAGAMENTO_CONFIRMADO`, `SQS_OS_CANCELADA`, `SQS_PAGAMENTO_ESTORNADO` | `execution-<evento>` | Nomes das filas consumidas |
-| `SQS_SAIDA` | `execution-events` | Fila onde os eventos são publicados |
+| `SNS_ENDPOINT` | `http://localhost:4566` | Endpoint do SNS (somente local) |
+| `SNS_TOPICO_ARN` | `arn:aws:sns:us-east-1:000000000000:execution-events` | ARN do tópico SNS onde os eventos são publicados (a aplicação não cria o tópico; em produção o deploy injeta o ARN pelo ConfigMap) |
 | `SQS_MAX_CONCURRENT` | `2` | Concorrência dos listeners (deve caber no pool de 3 conexões do banco) |
 | `OUTBOX_ENABLED` / `OUTBOX_INTERVALO_MS` / `OUTBOX_LOTE` | `true` / `1000` / `50` | Publicação da outbox |
 
@@ -198,7 +238,7 @@ Em produção, o banco e o JWT são injetados pelo Kubernetes Secret `execution-
 | Workflow | Disparo | O que faz |
 |---|---|---|
 | `pr.yml` | Pull Request para `main` | Executa testes, verifica cobertura JaCoCo e valida o build da imagem Docker |
-| `deploy.yml` | Push na `main` ou disparo manual | Roda testes e cobertura; garante o repositório ECR, as filas SQS (com DLQ) e o namespace; publica a imagem; monta o secret do banco a partir do AWS Secrets Manager; aplica os manifestos no EKS |
+| `deploy.yml` | Push na `main` ou disparo manual | Roda testes e cobertura; garante o repositório ECR, as filas SQS (com DLQ), o tópico SNS e o namespace; publica a imagem; monta o secret do banco a partir do AWS Secrets Manager; aplica os manifestos no EKS |
 
 ### Secrets e variáveis do repositório
 
@@ -210,7 +250,7 @@ Em produção, o banco e o JWT são injetados pelo Kubernetes Secret `execution-
 | `JWT_SECRET` | Secret | Chave de assinatura dos tokens JWT (mínimo 32 caracteres; igual à do Lambda) |
 | `DB_SECRET_ID` | Variável | Nome ou ARN do secret do RDS no AWS Secrets Manager (JSON com `username`, `password`, `host`, `port` e `dbname`) |
 
-O usuário AWS da pipeline precisa de permissão para `secretsmanager:GetSecretValue`, criação de repositório ECR e criação de filas SQS.
+O usuário AWS da pipeline precisa de permissão para `secretsmanager:GetSecretValue`, criação de repositório ECR e criação de filas SQS e do tópico SNS (`sns:CreateTopic`); a aplicação precisa apenas de `sns:Publish` no tópico e de acesso às filas de entrada.
 
 ### Banco de dados (RDS)
 
@@ -312,7 +352,7 @@ Depois do evento `PAGAMENTO_CONFIRMADO` o item está em `NA_FILA` e o estoque fo
   ```json
   { "mecanicoId": 7 }
   ```
-  Resposta `200 OK` com `"status": "FINALIZADA"` e o evento `EXECUCAO_FINALIZADA` publicado em `execution-events`.
+  Resposta `200 OK` com `"status": "FINALIZADA"` e o evento `EXECUCAO_FINALIZADA` publicado no tópico `execution-events`.
 
 ---
 

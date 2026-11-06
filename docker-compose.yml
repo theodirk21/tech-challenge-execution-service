@@ -16,19 +16,19 @@ services:
       timeout: 5s
       retries: 10
 
-  # Emula o Amazon SQS localmente; as filas são criadas por localstack/init-sqs.sh
+  # Emula o Amazon SQS e o SNS localmente; as filas são criadas por localstack/init-sqs.sh
   localstack:
     image: localstack/localstack:3
     container_name: execution_localstack
     environment:
-      SERVICES: sqs
+      SERVICES: sqs,sns
       AWS_DEFAULT_REGION: us-east-1
     ports:
       - "4566:4566"
     volumes:
       - ./localstack/init-sqs.sh:/etc/localstack/init/ready.d/init-sqs.sh
     healthcheck:
-      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name execution-events"]
+      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name execution-events-local"]
       interval: 5s
       timeout: 10s
       retries: 20
@@ -49,6 +49,7 @@ services:
       DB_USER: postgres
       DB_PASSWORD: admin
       SQS_ENDPOINT: http://localstack:4566
+      SNS_ENDPOINT: http://localstack:4566
     ports:
       - "8080:8080"
   sonarqube:

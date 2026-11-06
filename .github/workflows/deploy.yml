@@ -80,7 +80,7 @@ jobs:
           aws ecr describe-repositories --repository-names "${ECR_REPOSITORY}" > /dev/null 2>&1 || \
             aws ecr create-repository --repository-name "${ECR_REPOSITORY}" --image-scanning-configuration scanOnPush=true
 
-      - name: Garantir Filas SQS (com DLQ)
+      - name: Garantir Filas SQS (com DLQ) e Tópico SNS
         run: |
           for q in execution-os-criada execution-pagamento-confirmado execution-os-cancelada execution-pagamento-estornado; do
             aws sqs create-queue --queue-name "${q}-dlq" > /dev/null
@@ -90,7 +90,9 @@ jobs:
             aws sqs create-queue --queue-name "$q" \
               --attributes "$(jq -nc --arg r "$REDRIVE" '{RedrivePolicy:$r}')" > /dev/null
           done
-          aws sqs create-queue --queue-name execution-events > /dev/null
+          # Topico de saida: os outros servicos assinam com a propria fila
+          SNS_TOPICO_ARN=$(aws sns create-topic --name execution-events --query TopicArn --output text)
+          echo "SNS_TOPICO_ARN=${SNS_TOPICO_ARN}" >> "$GITHUB_ENV"
 
       - name: Build e Push da Imagem Docker
         env:
@@ -119,7 +121,9 @@ jobs:
         run: kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Aplicar ConfigMap
-        run: kubectl apply -f k8s/configmap.yaml
+        run: |
+          sed -i "s|SNS_TOPICO_ARN_PLACEHOLDER|${SNS_TOPICO_ARN}|g" k8s/configmap.yaml
+          kubectl apply -f k8s/configmap.yaml
 
       - name: Criar ou Atualizar Secrets no Kubernetes
         env:
@@ -158,7 +162,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           IMAGE_FULL="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
-          sed -i "s|IMAGE_PLACEHOLDER|${IMAGE_FULL}|g" k8s/deployment.yaml
+          sed -i "s|IMAGE_PLACEHOLDER:TAG|${IMAGE_FULL}|g" k8s/deployment.yaml
 
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml

@@ -19,13 +19,15 @@ spec:
       labels:
         app: execution-service
     spec:
+      # A aplicacao nao usa a API do Kubernetes; nao precisa do token do service account
+      automountServiceAccountToken: false
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
       containers:
         - name: execution-service
-          image: "IMAGE_PLACEHOLDER"
+          image: "IMAGE_PLACEHOLDER:TAG"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -38,9 +40,11 @@ spec:
             requests:
               cpu: "250m"
               memory: "512Mi"
+              ephemeral-storage: "256Mi"
             limits:
               cpu: "1000m"
               memory: "1Gi"
+              ephemeral-storage: "1Gi"
           env:
             - name: SPRING_DATASOURCE_URL
               valueFrom:
@@ -84,6 +88,11 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: AWS_REGION
+            - name: SNS_TOPICO_ARN
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: SNS_TOPICO_ARN
             - name: SPRING_FLYWAY_ENABLED
               valueFrom:
                 configMapKeyRef:

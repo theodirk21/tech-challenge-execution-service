@@ -14,6 +14,7 @@ class PerfilProdPropertiesTest {
         Properties p = PropertiesLoaderUtils.loadAllProperties("application-prod.properties");
 
         assertThat(p.getProperty("spring.cloud.aws.sqs.endpoint")).isEmpty();
+        assertThat(p.getProperty("spring.cloud.aws.sns.endpoint")).isEmpty();
         assertThat(p.getProperty("spring.cloud.aws.credentials.access-key")).isEmpty();
         assertThat(p.getProperty("spring.cloud.aws.credentials.secret-key")).isEmpty();
     }
