@@ -6,5 +6,10 @@ for q in execution-os-criada execution-pagamento-confirmado execution-os-cancela
     --attributes '{"RedrivePolicy":"{\"deadLetterTargetArn\":\"arn:aws:sqs:us-east-1:000000000000:'"${q}"'-dlq\",\"maxReceiveCount\":\"5\"}"}'
 done
 
-# Fila de saída com os eventos publicados pelo execution-service
-awslocal sqs create-queue --queue-name execution-events
+# Topico SNS com os eventos publicados pelo execution-service.
+# Os outros servicos assinam com a propria fila; a fila abaixo e so para inspecionar localmente.
+TOPIC_ARN=$(awslocal sns create-topic --name execution-events --query TopicArn --output text)
+awslocal sqs create-queue --queue-name execution-events-local
+awslocal sns subscribe --topic-arn "$TOPIC_ARN" --protocol sqs \
+  --notification-endpoint arn:aws:sqs:us-east-1:000000000000:execution-events-local \
+  --attributes RawMessageDelivery=true

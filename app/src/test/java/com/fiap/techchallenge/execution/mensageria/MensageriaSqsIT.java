@@ -10,6 +10,7 @@ import com.fiap.techchallenge.execution.support.PostgresContainerSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.localstack.LocalStackContainer;
@@ -29,14 +30,16 @@ import static org.awaitility.Awaitility.await;
 
 /** Fluxo real entre PostgreSQL e SQS (LocalStack): listeners, idempotência, outbox e publisher. */
 @SpringBootTest(properties = "execution.outbox.intervalo-ms=200")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class MensageriaSqsIT extends PostgresContainerSupport {
 
     static final String[] ENTRADA = {"execution-os-criada", "execution-pagamento-confirmado",
             "execution-os-cancelada", "execution-pagamento-estornado"};
-    static final String SAIDA = "execution-events";
+    static final String TOPICO = "execution-events";
+    static final String SAIDA = "execution-events-test";
 
     static final LocalStackContainer LOCALSTACK =
-            new LocalStackContainer(DockerImageName.parse("localstack/localstack:3")).withServices("sqs");
+            new LocalStackContainer(DockerImageName.parse("localstack/localstack:3")).withServices("sqs", "sns");
 
     static {
         LOCALSTACK.start();
@@ -44,7 +47,12 @@ class MensageriaSqsIT extends PostgresContainerSupport {
             for (String fila : ENTRADA) {
                 LOCALSTACK.execInContainer("awslocal", "sqs", "create-queue", "--queue-name", fila);
             }
+            LOCALSTACK.execInContainer("awslocal", "sns", "create-topic", "--name", TOPICO);
             LOCALSTACK.execInContainer("awslocal", "sqs", "create-queue", "--queue-name", SAIDA);
+            LOCALSTACK.execInContainer("awslocal", "sns", "subscribe", "--topic-arn",
+                    "arn:aws:sns:us-east-1:000000000000:" + TOPICO, "--protocol", "sqs",
+                    "--notification-endpoint", "arn:aws:sqs:us-east-1:000000000000:" + SAIDA,
+                    "--attributes", "RawMessageDelivery=true");
         } catch (Exception e) {
             throw new IllegalStateException("Falha ao criar filas no LocalStack", e);
         }
@@ -53,6 +61,7 @@ class MensageriaSqsIT extends PostgresContainerSupport {
     @DynamicPropertySource
     static void propriedades(DynamicPropertyRegistry registry) {
         registry.add("spring.cloud.aws.sqs.endpoint", () -> LOCALSTACK.getEndpoint().toString());
+        registry.add("spring.cloud.aws.sns.endpoint", () -> LOCALSTACK.getEndpoint().toString());
         registry.add("spring.cloud.aws.credentials.access-key", LOCALSTACK::getAccessKey);
         registry.add("spring.cloud.aws.credentials.secret-key", LOCALSTACK::getSecretKey);
         registry.add("spring.cloud.aws.region.static", LOCALSTACK::getRegion);
@@ -79,8 +88,8 @@ class MensageriaSqsIT extends PostgresContainerSupport {
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             var atributos = sqs.getQueueAttributes(r -> r.queueUrl(url(nomeDaFila)).attributeNamesWithStrings("All"))
                     .join().attributesAsStrings();
-            assertThat(atributos.get("ApproximateNumberOfMessages")).isEqualTo("0");
-            assertThat(atributos.get("ApproximateNumberOfMessagesNotVisible")).isEqualTo("0");
+            assertThat(atributos).containsEntry("ApproximateNumberOfMessages", "0");
+            assertThat(atributos).containsEntry("ApproximateNumberOfMessagesNotVisible", "0");
         });
     }
 
