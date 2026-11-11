@@ -132,17 +132,19 @@ jobs:
         env:
           DB_SECRET_ID: ${{ vars.DB_SECRET_ID }}
         run: |
-          # Credenciais do banco lidas do AWS Secrets Manager; JWT_SECRET segue vindo dos secrets do GitHub
+          # DB_SECRET_ID/DB_SECRET_ARN apontam para o segredo do RDS no AWS Secrets Manager.
+          # O valor usado pelo app é o host/porta/banco extraído do secret e exposto como DB_URL, DB_USER, DB_PASSWORD.
           DB_JSON=$(aws secretsmanager get-secret-value --secret-id "$DB_SECRET_ID" --query SecretString --output text)
           DB_USER=$(echo "$DB_JSON" | jq -r .username)
           DB_PASSWORD=$(echo "$DB_JSON" | jq -r .password)
           DB_HOST=$(echo "$DB_JSON" | jq -r .host)
           DB_PORT=$(echo "$DB_JSON" | jq -r .port)
           DB_NAME=$(echo "$DB_JSON" | jq -r .dbname)
+          DB_URL="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require"
 
           echo "::add-mask::$DB_PASSWORD"
 
-          for v in DB_USER DB_PASSWORD DB_HOST DB_PORT DB_NAME; do
+          for v in DB_USER DB_PASSWORD DB_HOST DB_PORT DB_NAME DB_URL; do
             if [ -z "${!v}" ] || [ "${!v}" = "null" ]; then
               echo "::error::Valor $v vazio nos secrets do Secrets Manager."
               exit 1
@@ -151,7 +153,10 @@ jobs:
 
           kubectl create secret generic execution-secrets \
             --namespace=${{ env.NAMESPACE }} \
-            --from-literal=SPRING_DATASOURCE_URL="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require" \
+            --from-literal=DB_URL="${DB_URL}" \
+            --from-literal=DB_USER="${DB_USER}" \
+            --from-literal=DB_PASSWORD="${DB_PASSWORD}" \
+            --from-literal=SPRING_DATASOURCE_URL="${DB_URL}" \
             --from-literal=SPRING_DATASOURCE_USERNAME="${DB_USER}" \
             --from-literal=SPRING_DATASOURCE_PASSWORD="${DB_PASSWORD}" \
             --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
