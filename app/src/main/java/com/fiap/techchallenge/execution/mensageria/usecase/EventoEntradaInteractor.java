@@ -40,7 +40,9 @@ public class EventoEntradaInteractor implements EventoEntradaUseCase {
                 envelope.criadaEm(),
                 envelope.clienteId(),
                 envelope.veiculoId(),
-                envelope.correlationId()
+                envelope.correlationId(),
+                envelope.veiculoPlaca(),
+                envelope.veiculoModelo()
             );
             case "OS_CANCELADA" -> fila.cancelar(envelope.osId());
             default -> throw new BadRequestException("Tipo de evento desconhecido em os_execution: " + envelope.type());

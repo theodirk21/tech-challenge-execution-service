@@ -73,6 +73,17 @@ public class FilaInteractor implements FilaUseCase {
     }
 
     @Override
+    public ItemFila registrarOsCriada(Long osId, String solicitacao, String criadaEm, Long clienteId, Long veiculoId, String correlationId,
+                                      String veiculoPlaca, String veiculoModelo) {
+        return filaGateway.buscarPorOsId(osId).orElseGet(() -> {
+            ItemFila item = ItemFila.criar(osId, solicitacao, criadaEm, clienteId, veiculoId, correlationId, agora());
+            item.setVeiculoPlaca(veiculoPlaca);
+            item.setVeiculoModelo(veiculoModelo);
+            return filaGateway.salvar(item);
+        });
+    }
+
+    @Override
     public ItemFila iniciarDiagnostico(Long osId, Long mecanicoId) {
         ItemFila item = buscarComLock(osId);
         StatusFila anterior = item.getStatus();

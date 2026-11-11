@@ -58,7 +58,7 @@ public class ExecucaoSteps {
 
     @When("o evento OS_CRIADA chega para a OS {int} com a solicitação {string} e o veículo {string} modelo {string}")
     public void osCriada(int osId, String solicitacao, String placa, String modelo) {
-        enviarEvento("execution-os-criada", "OS_CRIADA",
+        enviarEvento("os_execution", "OS_CRIADA",
                 "{\"osId\":%d,\"solicitacao\":\"%s\",\"veiculo\":{\"placa\":\"%s\",\"modelo\":\"%s\"}}"
                         .formatted(osId, solicitacao, placa, modelo));
         aguardarStatus(osId, "AGUARDANDO_DIAGNOSTICO");
@@ -78,13 +78,13 @@ public class ExecucaoSteps {
 
     @When("o evento PAGAMENTO_CONFIRMADO chega para a OS {int}")
     public void pagamentoConfirmado(int osId) {
-        enviarEvento("execution-pagamento-confirmado", "PAGAMENTO_CONFIRMADO",
+        enviarEvento("billing_execution", "PAGAMENTO_CONFIRMADO",
                 "{\"osId\":%d,\"orcamentoId\":1,\"pagamentoId\":\"mp-%d\",\"valor\":850.0}".formatted(osId, osId));
     }
 
     @When("o evento OS_CANCELADA chega para a OS {int}")
     public void osCancelada(int osId) {
-        enviarEvento("execution-os-cancelada", "OS_CANCELADA", "{\"osId\":%d,\"motivo\":\"ORCAMENTO_REJEITADO\"}".formatted(osId));
+        enviarEvento("os_execution", "OS_CANCELADA", "{\"osId\":%d,\"motivo\":\"ORCAMENTO_REJEITADO\"}".formatted(osId));
     }
 
     @When("o mecânico {int} inicia a próxima execução")

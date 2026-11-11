@@ -10,7 +10,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
@@ -46,7 +45,7 @@ class EventoEntradaInteractorTest {
         when(processados.registrar(any(), any())).thenReturn(primeira);
     }
 
-    private EnvelopeEntrada envOsExecution(String type, String payloadJson) throws Exception {
+    private EnvelopeEntrada envOsExecution(String type, String payloadJson) {
         String json = "{\"eventId\":\"%s\",\"type\":\"%s\",\"version\":1,\"occurredAt\":\"2026-11-08T20:41:06Z\",\"correlationId\":\"16\",\"payload\":%s}".formatted(id, type, payloadJson);
         var root = mapper.readTree(json);
         return new EnvelopeEntrada(
@@ -60,17 +59,17 @@ class EventoEntradaInteractorTest {
     }
 
     @Test
-    void osCriadaRegistraItemNaFilaComTodosCampos() throws Exception {
+    void osCriadaRegistraItemNaFilaComTodosCampos() {
         primeiraVez(true);
-        var env = envOsExecution("OS_CRIADA", "{\"osId\":10,\"solicitacao\":\"Trocar óleo\",\"criadaEm\":\"2026-11-08T20:41:06Z\",\"clienteId\":1,\"veiculoId\":1}");
+        var env = envOsExecution("OS_CRIADA", "{\"osId\":10,\"solicitacao\":\"Trocar óleo\",\"criadaEm\":\"2026-11-08T20:41:06Z\",\"clienteId\":1,\"veiculoId\":1,\"veiculo\":{\"placa\":\"ABC1D23\",\"modelo\":\"Gol\"}}");
 
         interactor.processarDoOsExecution(env);
 
-        verify(fila).registrarOsCriada(10L, "Trocar óleo", "2026-11-08T20:41:06Z", 1L, 1L, "16");
+        verify(fila).registrarOsCriada(10L, "Trocar óleo", "2026-11-08T20:41:06Z", 1L, 1L, "16", "ABC1D23", "Gol");
     }
 
     @Test
-    void osCanceladaChama() throws Exception {
+    void osCanceladaChama() {
         primeiraVez(true);
         var env = envOsExecution("OS_CANCELADA", "{\"osId\":10}");
 
@@ -80,7 +79,7 @@ class EventoEntradaInteractorTest {
     }
 
     @Test
-    void pagamentoConfirmadoConfirmaPagamento() throws Exception {
+    void pagamentoConfirmadoConfirmaPagamento() {
         primeiraVez(true);
         var env = envOsExecution("PAGAMENTO_CONFIRMADO", "{\"osId\":10}");
 
@@ -90,7 +89,7 @@ class EventoEntradaInteractorTest {
     }
 
     @Test
-    void pagamentoFalhourChamaFalharExecucao() throws Exception {
+    void pagamentoFalhourChamaFalharExecucao() {
         primeiraVez(true);
         var env = envOsExecution("PAGAMENTO_FALHOU", "{\"osId\":10}");
 
@@ -100,7 +99,7 @@ class EventoEntradaInteractorTest {
     }
 
     @Test
-    void pagamentoEstornadoCancela() throws Exception {
+    void pagamentoEstornadoCancela() {
         primeiraVez(true);
         var env = envOsExecution("PAGAMENTO_ESTORNADO", "{\"osId\":10}");
 
@@ -110,7 +109,7 @@ class EventoEntradaInteractorTest {
     }
 
     @Test
-    void eventoRepetidoEIgnorado() throws Exception {
+    void eventoRepetidoEIgnorado() {
         primeiraVez(false);
         var env1 = envOsExecution("OS_CRIADA", "{\"osId\":10,\"solicitacao\":\"x\",\"criadaEm\":\"2026-11-08T20:41:06Z\",\"clienteId\":1,\"veiculoId\":1}");
         var env2 = envOsExecution("PAGAMENTO_CONFIRMADO", "{\"osId\":10}");
@@ -122,7 +121,7 @@ class EventoEntradaInteractorTest {
     }
 
     @Test
-    void tipoDesconhecidoEmOsExecutionLancaErro() throws Exception {
+    void tipoDesconhecidoEmOsExecutionLancaErro() {
         primeiraVez(true);
         var env = envOsExecution("TIPO_INVALIDO", "{\"osId\":10}");
 
@@ -132,7 +131,7 @@ class EventoEntradaInteractorTest {
     }
 
     @Test
-    void tipoDesconhecidoEmBillingExecutionLancaErro() throws Exception {
+    void tipoDesconhecidoEmBillingExecutionLancaErro() {
         primeiraVez(true);
         var env = envOsExecution("TIPO_INVALIDO", "{\"osId\":10}");
 

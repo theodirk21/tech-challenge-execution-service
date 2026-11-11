@@ -18,6 +18,10 @@ public interface FilaUseCase {
     /** OS_CRIADA: idempotente, uma OS repetida devolve o item já existente. */
     ItemFila registrarOsCriada(Long osId, String solicitacao, String criadaEm, Long clienteId, Long veiculoId, String correlationId);
 
+    /** OS_CRIADA com dados completos do veículo. */
+    ItemFila registrarOsCriada(Long osId, String solicitacao, String criadaEm, Long clienteId, Long veiculoId, String correlationId, 
+                               String veiculoPlaca, String veiculoModelo);
+
     ItemFila iniciarDiagnostico(Long osId, Long mecanicoId);
 
     ItemFila concluirDiagnostico(Long osId, List<ItemDiagnosticoInput> itens);

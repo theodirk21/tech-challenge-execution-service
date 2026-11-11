@@ -42,4 +42,12 @@ public record EnvelopeEntrada(
     public String solicitacao() {
         return texto("solicitacao");
     }
+
+    public String veiculoPlaca() {
+        return texto("veiculo", "placa");
+    }
+
+    public String veiculoModelo() {
+        return texto("veiculo", "modelo");
+    }
 }

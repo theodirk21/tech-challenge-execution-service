@@ -6,15 +6,11 @@ import com.fiap.techchallenge.execution.estoque.domain.PecaEstoque;
 import com.fiap.techchallenge.execution.estoque.usecase.EstoqueUseCase;
 import com.fiap.techchallenge.execution.fila.domain.StatusFila;
 import com.fiap.techchallenge.execution.fila.usecase.FilaUseCase;
-import com.fiap.techchallenge.execution.support.PostgresContainerSupport;
+import com.fiap.techchallenge.execution.support.SqsContainerSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.localstack.LocalStackContainer;
-import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.Message;
 import tools.jackson.databind.JsonNode;
@@ -31,41 +27,12 @@ import static org.awaitility.Awaitility.await;
 /** Fluxo real entre PostgreSQL e SQS (LocalStack): listeners, idempotência, outbox e publisher. */
 @SpringBootTest(properties = "execution.outbox.intervalo-ms=200")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-class MensageriaSqsIT extends PostgresContainerSupport {
+class MensageriaSqsIT extends SqsContainerSupport {
 
-    static final String[] ENTRADA = {"execution-os-criada", "execution-pagamento-confirmado",
-            "execution-os-cancelada", "execution-pagamento-estornado"};
-    static final String TOPICO = "execution-events";
-    static final String SAIDA = "execution-events-test";
-
-    static final LocalStackContainer LOCALSTACK =
-            new LocalStackContainer(DockerImageName.parse("localstack/localstack:3")).withServices("sqs", "sns");
-
-    static {
-        LOCALSTACK.start();
-        try {
-            for (String fila : ENTRADA) {
-                LOCALSTACK.execInContainer("awslocal", "sqs", "create-queue", "--queue-name", fila);
-            }
-            LOCALSTACK.execInContainer("awslocal", "sns", "create-topic", "--name", TOPICO);
-            LOCALSTACK.execInContainer("awslocal", "sqs", "create-queue", "--queue-name", SAIDA);
-            LOCALSTACK.execInContainer("awslocal", "sns", "subscribe", "--topic-arn",
-                    "arn:aws:sns:us-east-1:000000000000:" + TOPICO, "--protocol", "sqs",
-                    "--notification-endpoint", "arn:aws:sqs:us-east-1:000000000000:" + SAIDA,
-                    "--attributes", "RawMessageDelivery=true");
-        } catch (Exception e) {
-            throw new IllegalStateException("Falha ao criar filas no LocalStack", e);
-        }
-    }
-
-    @DynamicPropertySource
-    static void propriedades(DynamicPropertyRegistry registry) {
-        registry.add("spring.cloud.aws.sqs.endpoint", () -> LOCALSTACK.getEndpoint().toString());
-        registry.add("spring.cloud.aws.sns.endpoint", () -> LOCALSTACK.getEndpoint().toString());
-        registry.add("spring.cloud.aws.credentials.access-key", LOCALSTACK::getAccessKey);
-        registry.add("spring.cloud.aws.credentials.secret-key", LOCALSTACK::getSecretKey);
-        registry.add("spring.cloud.aws.region.static", LOCALSTACK::getRegion);
-    }
+    static final String FILA_OS = "os_execution";
+    static final String FILA_BILLING = "billing_execution";
+    static final String[] ENTRADA = {FILA_OS, FILA_BILLING, FILA_OS, FILA_BILLING};
+    static final String SAIDA = FILA_DE_SAIDA;
 
     @Autowired SqsAsyncClient sqs;
     @Autowired JsonMapper mapper;

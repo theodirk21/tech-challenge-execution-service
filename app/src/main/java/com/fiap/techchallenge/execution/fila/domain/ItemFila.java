@@ -133,4 +133,6 @@ public class ItemFila {
 
     public void setId(Long id) { this.id = id; }
     public void setPrioridade(int prioridade) { this.prioridade = prioridade; }
+    public void setVeiculoPlaca(String veiculoPlaca) { this.veiculoPlaca = veiculoPlaca; }
+    public void setVeiculoModelo(String veiculoModelo) { this.veiculoModelo = veiculoModelo; }
 }
