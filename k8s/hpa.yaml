@@ -9,7 +9,20 @@ spec:
     kind: Deployment
     name: execution-service
   minReplicas: 2
-  maxReplicas: 10
+  maxReplicas: 4
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
   metrics:
     - type: Resource
       resource:
