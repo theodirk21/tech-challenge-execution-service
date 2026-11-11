@@ -80,7 +80,7 @@ class FilaInteractorTest {
     void osCriadaCriaItemAguardandoDiagnostico() {
         when(filaGateway.buscarPorOsId(OS)).thenReturn(Optional.empty());
 
-        ItemFila criado = interactor.registrarOsCriada(OS, "freio", "ABC1D23", "Gol", "2026-11-08T20:41:06Z", 1L, 1L);
+        ItemFila criado = interactor.registrarOsCriada(OS, "freio", "2026-11-08T20:41:06Z", 1L, 1L, "16");
 
         assertThat(criado.getStatus()).isEqualTo(StatusFila.AGUARDANDO_DIAGNOSTICO);
         assertThat(criado.getEntrouEm()).isEqualTo(LocalDateTime.of(2026, 10, 22, 14, 0));
@@ -90,7 +90,7 @@ class FilaInteractorTest {
     void osCriadaRepetidaNaoDuplica() {
         item(StatusFila.EM_DIAGNOSTICO);
 
-        ItemFila r = interactor.registrarOsCriada(OS, "x", "x", "x", "2026-11-08T20:41:06Z", 1L, 1L);
+        ItemFila r = interactor.registrarOsCriada(OS, "x", "2026-11-08T20:41:06Z", 1L, 1L, "16");
 
         assertThat(r.getStatus()).isEqualTo(StatusFila.EM_DIAGNOSTICO);
         verify(filaGateway, never()).salvar(any());

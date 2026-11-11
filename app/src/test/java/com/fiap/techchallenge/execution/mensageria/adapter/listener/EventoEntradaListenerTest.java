@@ -10,6 +10,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -59,7 +60,7 @@ class EventoEntradaListenerTest {
         listener.consumirFilaBillingExecution(msgFalhou);
         listener.consumirFilaBillingExecution(msgEstornado);
 
-        verify(eventos).processarDoBillingExecution(any(EnvelopeEntrada.class));
+        verify(eventos, times(2)).processarDoBillingExecution(any(EnvelopeEntrada.class));
     }
 
     @Test
