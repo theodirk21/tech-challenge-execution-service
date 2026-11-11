@@ -14,6 +14,10 @@ public class ItemFila {
     private String solicitacao;
     private String veiculoPlaca;
     private String veiculoModelo;
+    private String criadaEm;
+    private Long clienteId;
+    private Long veiculoId;
+    private String correlationId;
     private LocalDateTime entrouEm;
     private LocalDateTime iniciouEm;
     private LocalDateTime finalizouEm;
@@ -22,6 +26,7 @@ public class ItemFila {
 
     public ItemFila(Long id, Long osId, StatusFila status, int prioridade, Long mecanicoId,
                     String solicitacao, String veiculoPlaca, String veiculoModelo,
+                    String criadaEm, Long clienteId, Long veiculoId, String correlationId,
                     LocalDateTime entrouEm, LocalDateTime iniciouEm, LocalDateTime finalizouEm) {
         this.id = id;
         this.osId = osId;
@@ -31,15 +36,19 @@ public class ItemFila {
         this.solicitacao = solicitacao;
         this.veiculoPlaca = veiculoPlaca;
         this.veiculoModelo = veiculoModelo;
+        this.criadaEm = criadaEm;
+        this.clienteId = clienteId;
+        this.veiculoId = veiculoId;
+        this.correlationId = correlationId;
         this.entrouEm = entrouEm;
         this.iniciouEm = iniciouEm;
         this.finalizouEm = finalizouEm;
     }
 
-    public static ItemFila criar(Long osId, String solicitacao, String veiculoPlaca, String veiculoModelo,
-                                 LocalDateTime agora) {
+    public static ItemFila criar(Long osId, String solicitacao, String criadaEm, Long clienteId, Long veiculoId, 
+                                 String correlationId, LocalDateTime agora) {
         return new ItemFila(null, osId, StatusFila.AGUARDANDO_DIAGNOSTICO, 0, null,
-                solicitacao, veiculoPlaca, veiculoModelo, agora, null, null);
+                solicitacao, null, null, criadaEm, clienteId, veiculoId, correlationId, agora, null, null);
     }
 
     // Transições de status
@@ -114,6 +123,10 @@ public class ItemFila {
     public String getSolicitacao() { return solicitacao; }
     public String getVeiculoPlaca() { return veiculoPlaca; }
     public String getVeiculoModelo() { return veiculoModelo; }
+    public String getCriadaEm() { return criadaEm; }
+    public Long getClienteId() { return clienteId; }
+    public Long getVeiculoId() { return veiculoId; }
+    public String getCorrelationId() { return correlationId; }
     public LocalDateTime getEntrouEm() { return entrouEm; }
     public LocalDateTime getIniciouEm() { return iniciouEm; }
     public LocalDateTime getFinalizouEm() { return finalizouEm; }

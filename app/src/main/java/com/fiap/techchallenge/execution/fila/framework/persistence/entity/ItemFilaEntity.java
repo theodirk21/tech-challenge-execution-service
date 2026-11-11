@@ -42,6 +42,18 @@ public class ItemFilaEntity {
     @Column(name = "veiculo_modelo", length = 80)
     private String veiculoModelo;
 
+    @Column(name = "criada_em", length = 50)
+    private String criadaEm;
+
+    @Column(name = "cliente_id")
+    private Long clienteId;
+
+    @Column(name = "veiculo_id")
+    private Long veiculoId;
+
+    @Column(name = "correlation_id", length = 100)
+    private String correlationId;
+
     @Column(name = "entrou_em", nullable = false)
     private LocalDateTime entrouEm;
 
@@ -63,6 +75,10 @@ public class ItemFilaEntity {
         e.solicitacao = d.getSolicitacao();
         e.veiculoPlaca = d.getVeiculoPlaca();
         e.veiculoModelo = d.getVeiculoModelo();
+        e.criadaEm = d.getCriadaEm();
+        e.clienteId = d.getClienteId();
+        e.veiculoId = d.getVeiculoId();
+        e.correlationId = d.getCorrelationId();
         e.entrouEm = d.getEntrouEm();
         e.iniciouEm = d.getIniciouEm();
         e.finalizouEm = d.getFinalizouEm();
@@ -71,6 +87,8 @@ public class ItemFilaEntity {
 
     public ItemFila toDomain() {
         return new ItemFila(id, osId, status, prioridade, mecanicoId, solicitacao,
-                veiculoPlaca, veiculoModelo, entrouEm, iniciouEm, finalizouEm);
+                veiculoPlaca, veiculoModelo, criadaEm, clienteId, veiculoId, correlationId,
+                entrouEm, iniciouEm, finalizouEm);
     }
 }
+
