@@ -13,7 +13,7 @@ class ItemFilaTest {
     private static final LocalDateTime AGORA = LocalDateTime.of(2026, 10, 22, 14, 0);
 
     private ItemFila novo() {
-        return ItemFila.criar(10L, "Barulho no freio", "ABC1D23", "Gol", AGORA);
+        return ItemFila.criar(10L, "Barulho no freio", "ABC1D23", "Gol", "2026-11-08T20:41:06Z", 1L, 1L, "16", AGORA);
     }
 
     private ItemFila naFila() {

@@ -67,9 +67,9 @@ public class FilaInteractor implements FilaUseCase {
     }
 
     @Override
-    public ItemFila registrarOsCriada(Long osId, String solicitacao, String veiculoPlaca, String veiculoModelo) {
+    public ItemFila registrarOsCriada(Long osId, String solicitacao, String criadaEm, Long clienteId, Long veiculoId, String correlationId) {
         return filaGateway.buscarPorOsId(osId).orElseGet(() ->
-                filaGateway.salvar(ItemFila.criar(osId, solicitacao, veiculoPlaca, veiculoModelo, agora())));
+                filaGateway.salvar(ItemFila.criar(osId, solicitacao, criadaEm, clienteId, veiculoId, correlationId, agora())));
     }
 
     @Override

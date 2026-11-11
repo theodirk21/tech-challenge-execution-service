@@ -63,7 +63,7 @@ class FilaInteractorTest {
     }
 
     private ItemFila item(StatusFila status) {
-        ItemFila i = new ItemFila(1L, OS, status, 0, null, "freio", "ABC1D23", "Gol",
+        ItemFila i = new ItemFila(1L, OS, status, 0, null, "freio", "ABC1D23", "Gol", "2026-11-08T20:41:06Z", 1L, 1L, "16",
                 LocalDateTime.of(2026, 10, 22, 10, 0), null, null);
         when(filaGateway.buscarPorOsIdComLock(OS)).thenReturn(Optional.of(i));
         when(filaGateway.buscarPorOsId(OS)).thenReturn(Optional.of(i));
@@ -80,7 +80,7 @@ class FilaInteractorTest {
     void osCriadaCriaItemAguardandoDiagnostico() {
         when(filaGateway.buscarPorOsId(OS)).thenReturn(Optional.empty());
 
-        ItemFila criado = interactor.registrarOsCriada(OS, "freio", "ABC1D23", "Gol");
+        ItemFila criado = interactor.registrarOsCriada(OS, "freio", "ABC1D23", "Gol", "2026-11-08T20:41:06Z", 1L, 1L);
 
         assertThat(criado.getStatus()).isEqualTo(StatusFila.AGUARDANDO_DIAGNOSTICO);
         assertThat(criado.getEntrouEm()).isEqualTo(LocalDateTime.of(2026, 10, 22, 14, 0));
@@ -90,7 +90,7 @@ class FilaInteractorTest {
     void osCriadaRepetidaNaoDuplica() {
         item(StatusFila.EM_DIAGNOSTICO);
 
-        ItemFila r = interactor.registrarOsCriada(OS, "x", "x", "x");
+        ItemFila r = interactor.registrarOsCriada(OS, "x", "x", "x", "2026-11-08T20:41:06Z", 1L, 1L);
 
         assertThat(r.getStatus()).isEqualTo(StatusFila.EM_DIAGNOSTICO);
         verify(filaGateway, never()).salvar(any());
@@ -163,7 +163,7 @@ class FilaInteractorTest {
 
     @Test
     void iniciaProximaExecucao() {
-        ItemFila i = new ItemFila(1L, OS, StatusFila.NA_FILA, 0, null, null, null, null,
+        ItemFila i = new ItemFila(1L, OS, StatusFila.NA_FILA, 0, null, null, null, null, "2026-11-08T20:41:06Z", 1L, 1L, "16",
                 LocalDateTime.of(2026, 10, 22, 10, 0), null, null);
         when(filaGateway.proximoDaFilaComLock()).thenReturn(Optional.of(i));
 

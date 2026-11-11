@@ -40,7 +40,7 @@ class ExecucaoControllerTest {
     @MockitoBean ServicoUseCase servicos;
 
     private static ItemFila item(StatusFila status) {
-        return new ItemFila(1L, 10L, status, 0, 2L, "freio", "ABC1D23", "Gol",
+        return new ItemFila(1L, 10L, status, 0, 2L, "freio", "ABC1D23", "Gol", "2026-11-08T20:41:06Z", 1L, 1L, "16",
                 LocalDateTime.of(2026, 10, 22, 10, 0), null, null);
     }
 
