@@ -254,6 +254,9 @@ Em produção, o banco e o JWT são injetados pelo Kubernetes Secret `execution-
 | `AWS_SESSION_TOKEN` | Secret | Token de sessão temporário (AWS Academy Learner Lab) |
 | `JWT_SECRET` | Secret | Chave de assinatura dos tokens JWT (mínimo 32 caracteres; igual à do Lambda) |
 | `DB_SECRET_ID` | Variável | Nome ou ARN do secret do RDS no AWS Secrets Manager (JSON com `username`, `password`, `host`, `port` e `dbname`) |
+| `SQS_OS_EXECUTION` | Variável | Nome da fila SQS já existente para eventos do OS (`OS_CRIADA` e `OS_CANCELADA`) |
+| `SQS_BILLING_EXECUTION` | Variável | Nome da fila SQS já existente para eventos do Billing (`PAGAMENTO_CONFIRMADO`, `PAGAMENTO_FALHOU`, `PAGAMENTO_ESTORNADO`) |
+| `SNS_TOPICO_ARN` | Variável | ARN do tópico SNS já existente usado para publicações de eventos |
 
 O usuário AWS da pipeline precisa de permissão para `secretsmanager:GetSecretValue`, criação de repositório ECR e criação de filas SQS e do tópico SNS (`sns:CreateTopic`); a aplicação precisa apenas de `sns:Publish` no tópico e de acesso às filas de entrada.
 

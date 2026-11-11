@@ -88,6 +88,16 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: AWS_REGION
+            - name: SQS_OS_EXECUTION
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: SQS_OS_EXECUTION
+            - name: SQS_BILLING_EXECUTION
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: SQS_BILLING_EXECUTION
             - name: SNS_TOPICO_ARN
               valueFrom:
                 configMapKeyRef:
