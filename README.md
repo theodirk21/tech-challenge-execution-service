@@ -217,9 +217,13 @@ O flag `--platform linux/amd64` é obrigatório. Os nós do cluster EKS utilizam
 
 ## Variáveis de Ambiente
 
+### 1) Variáveis que o app recebe no runtime
+
+Estas são as variáveis que a aplicação lê em execução (pod / local / docker):
+
 | Variável | Padrão (dev local) | Descrição |
 |---|---|---|
-| `DB_URL` (`SPRING_DATASOURCE_URL`) | `jdbc:postgresql://localhost:5434/execution` | URL JDBC de conexão com o banco |
+| `DB_URL` (`SPRING_DATASOURCE_URL`) | `jdbc:postgresql://localhost:5434/execution` | URL JDBC de conexão com o banco; em produção deve ser o host do RDS, não o ARN do Secrets Manager |
 | `DB_USER` (`SPRING_DATASOURCE_USERNAME`) | `postgres` | Usuário do banco |
 | `DB_PASSWORD` (`SPRING_DATASOURCE_PASSWORD`) | `admin` | Senha do banco |
 | `JWT_SECRET` | `minha-chave-secreta-dev-minimo-32-chars!!` | Chave de assinatura dos tokens JWT (a mesma usada pelo Lambda de autenticação) |
@@ -227,12 +231,30 @@ O flag `--platform linux/amd64` é obrigatório. Os nós do cluster EKS utilizam
 | `SQS_ENDPOINT` | `http://localhost:4566` | Endpoint do SQS (somente local) |
 | `AWS_REGION` | `us-east-1` | Região da AWS |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` | `test` / `test` / — | Credenciais AWS (em produção, via Secret do Kubernetes) |
-| `EXECUTION_SQS_OS_EXECUTION` | `os_execution` | Fila SQS para eventos do OS (OS_CRIADA, OS_CANCELADA) |
-| `EXECUTION_SQS_BILLING_EXECUTION` | `billing_execution` | Fila SQS para eventos do Billing (PAGAMENTO_CONFIRMADO, PAGAMENTO_FALHOU, PAGAMENTO_ESTORNADO) |
+| `SQS_OS_EXECUTION` | `os_execution` | Nome da fila SQS para eventos do OS (OS_CRIADA, OS_CANCELADA) |
+| `SQS_BILLING_EXECUTION` | `billing_execution` | Nome da fila SQS para eventos do Billing (PAGAMENTO_CONFIRMADO, PAGAMENTO_FALHOU, PAGAMENTO_ESTORNADO) |
 | `SNS_ENDPOINT` | `http://localhost:4566` | Endpoint do SNS (somente local) |
-| `SNS_TOPICO_ARN` | `arn:aws:sns:us-east-1:000000000000:execution-events` | ARN do tópico SNS onde os eventos são publicados (a aplicação não cria o tópico; em produção o deploy injeta o ARN pelo ConfigMap) |
+| `SNS_TOPICO_ARN` | `arn:aws:sns:us-east-1:000000000000:execution-events` | ARN do tópico SNS onde os eventos são publicados; não é a fila SQS, e sim o tópico da saída |
 | `SQS_MAX_CONCURRENT` | `2` | Concorrência dos listeners (deve caber no pool de 3 conexões do banco) |
 | `OUTBOX_ENABLED` / `OUTBOX_INTERVALO_MS` / `OUTBOX_LOTE` | `true` / `1000` / `50` | Publicação da outbox |
+
+### 2) Variáveis que o GitHub / pipeline usa para montar o runtime
+
+Essas não são usadas diretamente pelo app; elas servem para a pipeline buscar os dados reais da infraestrutura e gerar o Secret do Kubernetes:
+
+| Variável | Exemplo | Descrição |
+|---|---|---|
+| `AWS_REGION` | `us-east-1` | Região do cluster e da AWS |
+| `DB_SECRET_ID` / `DB_SECRET_ARN` | `arn:aws:secretsmanager:...:secret:...` | Identificador do segredo do RDS no AWS Secrets Manager |
+| `SQS_OS_EXECUTION` | `os_execution` | Nome da fila SQS real do OS |
+| `SQS_BILLING_EXECUTION` | `billing_execution` | Nome da fila SQS real do Billing |
+| `SNS_TOPICO_ARN` | `arn:aws:sns:us-east-1:...:execution-events` | ARN do tópico SNS real do sistema |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` | secrets | Credenciais da AWS para a pipeline |
+| `JWT_SECRET` | secret | Chave JWT usada pelo serviço |
+
+> Importante: o `DB_SECRET_ID`/`DB_SECRET_ARN` aponta para o segredo do banco no AWS Secrets Manager. Ele não é a URL do banco e não é usado diretamente pela aplicação. A pipeline busca esse segredo, extrai `host`, `port`, `dbname`, `username` e `password`, e gera `DB_URL`, `DB_USER` e `DB_PASSWORD` para o pod.
+>
+> O mesmo vale para SQS e SNS: a aplicação não recebe o ARN do secreto, e sim os nomes e ARN reais da fila/tópico existentes na AWS.
 
 Em produção, o banco e o JWT são injetados pelo Kubernetes Secret `execution-secrets`, criado automaticamente pela pipeline `deploy.yml`.
 
@@ -253,10 +275,10 @@ Em produção, o banco e o JWT são injetados pelo Kubernetes Secret `execution-
 | `AWS_SECRET_ACCESS_KEY` | Secret | Credencial AWS |
 | `AWS_SESSION_TOKEN` | Secret | Token de sessão temporário (AWS Academy Learner Lab) |
 | `JWT_SECRET` | Secret | Chave de assinatura dos tokens JWT (mínimo 32 caracteres; igual à do Lambda) |
-| `DB_SECRET_ID` | Variável | Nome ou ARN do secret do RDS no AWS Secrets Manager (JSON com `username`, `password`, `host`, `port` e `dbname`) |
+| `DB_SECRET_ID` / `DB_SECRET_ARN` | Variável | Nome ou ARN do secret do RDS no AWS Secrets Manager. Essa variável só identifica o secreto; o app recebe os valores reais em `DB_URL`, `DB_USER` e `DB_PASSWORD` |
 | `SQS_OS_EXECUTION` | Variável | Nome da fila SQS já existente para eventos do OS (`OS_CRIADA` e `OS_CANCELADA`) |
 | `SQS_BILLING_EXECUTION` | Variável | Nome da fila SQS já existente para eventos do Billing (`PAGAMENTO_CONFIRMADO`, `PAGAMENTO_FALHOU`, `PAGAMENTO_ESTORNADO`) |
-| `SNS_TOPICO_ARN` | Variável | ARN do tópico SNS já existente usado para publicações de eventos |
+| `SNS_TOPICO_ARN` | Variável | ARN do tópico SNS já existente usado para publicações de eventos; não é o ARN da fila |
 
 O usuário AWS da pipeline precisa de permissão para `secretsmanager:GetSecretValue`, criação de repositório ECR e criação de filas SQS e do tópico SNS (`sns:CreateTopic`); a aplicação precisa apenas de `sns:Publish` no tópico e de acesso às filas de entrada.
 

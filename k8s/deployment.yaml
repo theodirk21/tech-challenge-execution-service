@@ -46,6 +46,21 @@ spec:
               memory: "1Gi"
               ephemeral-storage: "1Gi"
           env:
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: execution-secrets
+                  key: DB_URL
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: execution-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: execution-secrets
+                  key: DB_PASSWORD
             - name: SPRING_DATASOURCE_URL
               valueFrom:
                 secretKeyRef:
