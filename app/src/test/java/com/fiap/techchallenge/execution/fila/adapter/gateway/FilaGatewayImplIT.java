@@ -24,7 +24,7 @@ class FilaGatewayImplIT extends PostgresContainerSupport {
     private static final LocalDateTime T0 = LocalDateTime.of(2026, 1, 1, 8, 0);
 
     private ItemFila naFila(long osId, int prioridade, LocalDateTime entrouEm) {
-        ItemFila item = ItemFila.criar(osId, "Troca de óleo", "ABC1D23", "Gol", entrouEm);
+        ItemFila item = ItemFila.criar(osId, "Troca de óleo", "2026-11-08T20:41:06Z", 1L, 1L, "16", entrouEm);
         item.iniciarDiagnostico(1L);
         item.concluirDiagnostico();
         item.confirmarPagamento();
@@ -34,20 +34,18 @@ class FilaGatewayImplIT extends PostgresContainerSupport {
 
     @Test
     void salvaEBuscaPreservandoTodosOsCampos() {
-        ItemFila salvo = repo.salvar(ItemFila.criar(100L, "Freio", "XYZ9K88", "Onix", T0));
+        ItemFila salvo = repo.salvar(ItemFila.criar(100L, "Freio", "2026-11-08T20:41:06Z", 1L, 1L, "16", T0));
 
         assertThat(salvo.getId()).isNotNull();
         ItemFila lido = repo.buscarPorOsId(100L).orElseThrow();
         assertThat(lido.getStatus()).isEqualTo(StatusFila.AGUARDANDO_DIAGNOSTICO);
         assertThat(lido.getSolicitacao()).isEqualTo("Freio");
-        assertThat(lido.getVeiculoPlaca()).isEqualTo("XYZ9K88");
-        assertThat(lido.getVeiculoModelo()).isEqualTo("Onix");
         assertThat(lido.getEntrouEm()).isEqualTo(T0);
     }
 
     @Test
     void persisteTransicaoDeStatus() {
-        ItemFila item = repo.salvar(ItemFila.criar(101L, "Revisão", "AAA1A11", "Uno", T0));
+        ItemFila item = repo.salvar(ItemFila.criar(101L, "Revisão", "2026-11-08T20:41:06Z", 1L, 1L, "16", T0));
         item.iniciarDiagnostico(7L);
         repo.salvar(item);
 
@@ -67,7 +65,7 @@ class FilaGatewayImplIT extends PostgresContainerSupport {
 
     @Test
     void proximoDaFilaIgnoraItensForaDaFila() {
-        repo.salvar(ItemFila.criar(301L, "x", "AAA1A11", "Uno", T0));
+        repo.salvar(ItemFila.criar(301L, "x", "2026-11-08T20:41:06Z", 1L, 1L, "16", T0));
 
         assertThat(repo.proximoDaFilaComLock()).isEmpty();
     }

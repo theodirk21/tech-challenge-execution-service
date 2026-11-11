@@ -1,12 +1,13 @@
 package com.fiap.techchallenge.execution.mensageria.usecase;
 
+import com.fiap.techchallenge.execution.exception.BadRequestException;
 import com.fiap.techchallenge.execution.fila.usecase.FilaUseCase;
+import com.fiap.techchallenge.execution.mensageria.adapter.listener.EnvelopeEntrada;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * O registro em processed_event e a alteração da fila ficam na mesma transação: se o tratamento falhar,
@@ -27,38 +28,42 @@ public class EventoEntradaInteractor implements EventoEntradaUseCase {
     }
 
     @Override
-    public void processarOsCriada(UUID eventId, Long osId, String solicitacao, String veiculoPlaca, String veiculoModelo) {
-        if (repetido(eventId)) {
+    public void processarDoOsExecution(EnvelopeEntrada envelope) {
+        if (repetido(envelope.eventId())) {
             return;
         }
-        fila.registrarOsCriada(osId, solicitacao, veiculoPlaca, veiculoModelo);
+        
+        switch (envelope.type()) {
+            case "OS_CRIADA" -> fila.registrarOsCriada(
+                envelope.osId(),
+                envelope.solicitacao(),
+                envelope.criadaEm(),
+                envelope.clienteId(),
+                envelope.veiculoId(),
+                envelope.correlationId(),
+                envelope.veiculoPlaca(),
+                envelope.veiculoModelo()
+            );
+            case "OS_CANCELADA" -> fila.cancelar(envelope.osId());
+            default -> throw new BadRequestException("Tipo de evento desconhecido em os_execution: " + envelope.type());
+        }
     }
 
     @Override
-    public void processarPagamentoConfirmado(UUID eventId, Long osId) {
-        if (repetido(eventId)) {
+    public void processarDoBillingExecution(EnvelopeEntrada envelope) {
+        if (repetido(envelope.eventId())) {
             return;
         }
-        fila.confirmarPagamento(osId);
-    }
-
-    @Override
-    public void processarOsCancelada(UUID eventId, Long osId) {
-        if (repetido(eventId)) {
-            return;
+        
+        switch (envelope.type()) {
+            case "PAGAMENTO_CONFIRMADO" -> fila.confirmarPagamento(envelope.osId());
+            case "PAGAMENTO_FALHOU" -> fila.falharExecucao(envelope.osId(), "Pagamento falhou no serviço de billing", "PAGAMENTO_FALHOU");
+            case "PAGAMENTO_ESTORNADO" -> fila.cancelar(envelope.osId());
+            default -> throw new BadRequestException("Tipo de evento desconhecido em billing_execution: " + envelope.type());
         }
-        fila.cancelar(osId);
     }
 
-    @Override
-    public void processarPagamentoEstornado(UUID eventId, Long osId) {
-        if (repetido(eventId)) {
-            return;
-        }
-        fila.cancelar(osId);
-    }
-
-    private boolean repetido(UUID eventId) {
+    private boolean repetido(java.util.UUID eventId) {
         return !processados.registrar(eventId, LocalDateTime.now(clock));
     }
 }

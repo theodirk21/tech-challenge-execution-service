@@ -108,7 +108,11 @@ Não há orquestrador: cada serviço reage aos eventos dos outros. O `osId` é o
 
 ### Mensageria
 
-- **Entrada:** 4 filas, cada uma com DLQ (`maxReceiveCount=5`): `execution-os-criada`, `execution-pagamento-confirmado`, `execution-os-cancelada`, `execution-pagamento-estornado`. O `eventId` é gravado em `processed_event` na mesma transação, então reentregas são ignoradas.
+- **Entrada:** 2 filas SQS, cada uma com DLQ (`maxReceiveCount=5`). As mensagens são diferenciadas pelo campo `type` do envelope:
+  - `os_execution` recebe `OS_CRIADA` e `OS_CANCELADA` (originários de os-service)
+  - `billing_execution` recebe `PAGAMENTO_CONFIRMADO`, `PAGAMENTO_FALHOU` e `PAGAMENTO_ESTORNADO` (originários de billing-service)
+  - O `eventId` é gravado em `processed_event` na mesma transação, então reentregas são ignoradas.
+- **Roteamento:** o listener (`EventoEntradaListener`) recebe a mensagem, faz parsing do envelope e delega para o UseCase (`EventoEntradaInteractor`), que roteia pelos dois métodos `processarDoOsExecution()` e `processarDoBillingExecution()`. Cada método contém um `switch` sobre o `type` para chamar o handler correto.
 - **Saída:** os eventos são gravados na tabela `outbox_event` na mesma transação da mudança de estado e publicados no tópico SNS `execution-events` por um scheduler (`FOR UPDATE SKIP LOCKED`, seguro com várias réplicas). Isso garante que um evento só existe se a mudança também existiu.
 - O contrato completo (envelope e payloads) está em [`docs/EVENTOS.md`](docs/EVENTOS.md).
 
@@ -223,7 +227,8 @@ O flag `--platform linux/amd64` é obrigatório. Os nós do cluster EKS utilizam
 | `SQS_ENDPOINT` | `http://localhost:4566` | Endpoint do SQS (somente local) |
 | `AWS_REGION` | `us-east-1` | Região da AWS |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` | `test` / `test` / — | Credenciais AWS (em produção, via Secret do Kubernetes) |
-| `SQS_OS_CRIADA`, `SQS_PAGAMENTO_CONFIRMADO`, `SQS_OS_CANCELADA`, `SQS_PAGAMENTO_ESTORNADO` | `execution-<evento>` | Nomes das filas consumidas |
+| `EXECUTION_SQS_OS_EXECUTION` | `os_execution` | Fila SQS para eventos do OS (OS_CRIADA, OS_CANCELADA) |
+| `EXECUTION_SQS_BILLING_EXECUTION` | `billing_execution` | Fila SQS para eventos do Billing (PAGAMENTO_CONFIRMADO, PAGAMENTO_FALHOU, PAGAMENTO_ESTORNADO) |
 | `SNS_ENDPOINT` | `http://localhost:4566` | Endpoint do SNS (somente local) |
 | `SNS_TOPICO_ARN` | `arn:aws:sns:us-east-1:000000000000:execution-events` | ARN do tópico SNS onde os eventos são publicados (a aplicação não cria o tópico; em produção o deploy injeta o ARN pelo ConfigMap) |
 | `SQS_MAX_CONCURRENT` | `2` | Concorrência dos listeners (deve caber no pool de 3 conexões do banco) |
@@ -249,6 +254,9 @@ Em produção, o banco e o JWT são injetados pelo Kubernetes Secret `execution-
 | `AWS_SESSION_TOKEN` | Secret | Token de sessão temporário (AWS Academy Learner Lab) |
 | `JWT_SECRET` | Secret | Chave de assinatura dos tokens JWT (mínimo 32 caracteres; igual à do Lambda) |
 | `DB_SECRET_ID` | Variável | Nome ou ARN do secret do RDS no AWS Secrets Manager (JSON com `username`, `password`, `host`, `port` e `dbname`) |
+| `SQS_OS_EXECUTION` | Variável | Nome da fila SQS já existente para eventos do OS (`OS_CRIADA` e `OS_CANCELADA`) |
+| `SQS_BILLING_EXECUTION` | Variável | Nome da fila SQS já existente para eventos do Billing (`PAGAMENTO_CONFIRMADO`, `PAGAMENTO_FALHOU`, `PAGAMENTO_ESTORNADO`) |
+| `SNS_TOPICO_ARN` | Variável | ARN do tópico SNS já existente usado para publicações de eventos |
 
 O usuário AWS da pipeline precisa de permissão para `secretsmanager:GetSecretValue`, criação de repositório ECR e criação de filas SQS e do tópico SNS (`sns:CreateTopic`); a aplicação precisa apenas de `sns:Publish` no tópico e de acesso às filas de entrada.
 

@@ -8,8 +8,7 @@ import org.testcontainers.utility.DockerImageName;
 /** PostgreSQL + LocalStack (SQS e SNS) com as filas e o tópico do serviço, iguais às criadas por localstack/init-sqs.sh. */
 public abstract class SqsContainerSupport extends PostgresContainerSupport {
 
-    public static final String[] FILAS_DE_ENTRADA = {"execution-os-criada", "execution-pagamento-confirmado",
-            "execution-os-cancelada", "execution-pagamento-estornado"};
+    public static final String[] FILAS_DE_ENTRADA = {"billing_execution", "os_execution"};
     public static final String TOPICO_DE_SAIDA = "execution-events";
     /** Fila assinante do topico, usada pelos testes para ler o que o servico publica. */
     public static final String FILA_DE_SAIDA = "execution-events-test";
@@ -20,9 +19,11 @@ public abstract class SqsContainerSupport extends PostgresContainerSupport {
     static {
         LOCALSTACK.start();
         try {
+            // Cria as filas de entrada
             for (String fila : FILAS_DE_ENTRADA) {
                 LOCALSTACK.execInContainer("awslocal", "sqs", "create-queue", "--queue-name", fila);
             }
+            // Cria o tópico e a fila de saída
             criarTopicoComAssinante();
         } catch (Exception e) {
             throw new IllegalStateException("Falha ao criar filas no LocalStack", e);
@@ -45,5 +46,8 @@ public abstract class SqsContainerSupport extends PostgresContainerSupport {
         registry.add("spring.cloud.aws.credentials.access-key", LOCALSTACK::getAccessKey);
         registry.add("spring.cloud.aws.credentials.secret-key", LOCALSTACK::getSecretKey);
         registry.add("spring.cloud.aws.region.static", LOCALSTACK::getRegion);
+        registry.add("execution.sqs.billing-execution", () -> "billing_execution");
+        registry.add("execution.sqs.os-execution", () -> "os_execution");
+        registry.add("execution.sns.topico-arn", () -> "arn:aws:sns:us-east-1:000000000000:" + TOPICO_DE_SAIDA);
     }
 }

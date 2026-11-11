@@ -13,7 +13,7 @@ class ItemFilaTest {
     private static final LocalDateTime AGORA = LocalDateTime.of(2026, 10, 22, 14, 0);
 
     private ItemFila novo() {
-        return ItemFila.criar(10L, "Barulho no freio", "ABC1D23", "Gol", AGORA);
+        return ItemFila.criar(10L, "Barulho no freio", "2026-11-08T20:41:06Z", 1L, 1L, "16", AGORA);
     }
 
     private ItemFila naFila() {
@@ -31,7 +31,8 @@ class ItemFilaTest {
         assertThat(item.getStatus()).isEqualTo(StatusFila.AGUARDANDO_DIAGNOSTICO);
         assertThat(item.getOsId()).isEqualTo(10L);
         assertThat(item.getSolicitacao()).isEqualTo("Barulho no freio");
-        assertThat(item.getVeiculoPlaca()).isEqualTo("ABC1D23");
+        assertThat(item.getClienteId()).isEqualTo(1L);
+        assertThat(item.getVeiculoId()).isEqualTo(1L);
         assertThat(item.getEntrouEm()).isEqualTo(AGORA);
         assertThat(item.podeSerRetiradoDaFila()).isFalse();
     }

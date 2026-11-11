@@ -8,7 +8,9 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -18,44 +20,62 @@ class EventoEntradaListenerTest {
     final EventoEntradaListener listener = new EventoEntradaListener(eventos, JsonMapper.builder().build());
     final UUID id = UUID.randomUUID();
 
-    private String msg(String payload) {
-        return "{\"eventId\":\"%s\",\"type\":\"X\",\"version\":1,\"payload\":%s}".formatted(id, payload);
+    private String envOsExecution(String type, String payload) {
+        return "{\"eventId\":\"%s\",\"type\":\"%s\",\"version\":1,\"occurredAt\":\"2026-11-08T20:41:06Z\",\"correlationId\":\"16\",\"payload\":%s}".formatted(id, type, payload);
+    }
+
+    private String envBillingExecution(String type, String payload) {
+        return "{\"eventId\":\"%s\",\"type\":\"%s\",\"version\":1,\"occurredAt\":\"2026-11-08T20:41:06Z\",\"correlationId\":\"16\",\"payload\":%s}".formatted(id, type, payload);
     }
 
     @Test
-    void osCriadaLeVeiculoESolicitacao() {
-        listener.aoCriarOs(msg("{\"osId\":10,\"solicitacao\":\"freio\",\"veiculo\":{\"placa\":\"ABC1D23\",\"modelo\":\"Gol\"}}"));
+    void osCriadaRoteiaPraOsExecutionComTodosOsCampos() {
+        var msg = envOsExecution("OS_CRIADA", "{\"osId\":10,\"solicitacao\":\"Trocar óleo\",\"criadaEm\":\"2026-11-08T20:41:06.266238836Z\",\"clienteId\":1,\"veiculoId\":1}");
+        listener.consumirFilaOsExecution(msg);
 
-        verify(eventos).processarOsCriada(id, 10L, "freio", "ABC1D23", "Gol");
+        verify(eventos).processarDoOsExecution(any(EnvelopeEntrada.class));
     }
 
     @Test
-    void osCriadaSemVeiculoNemSolicitacaoPassaNulos() {
-        listener.aoCriarOs(msg("{\"osId\":10,\"solicitacao\":null}"));
+    void osCanceladaRoteiaPraOsExecution() {
+        var msg = envOsExecution("OS_CANCELADA", "{\"osId\":10}");
+        listener.consumirFilaOsExecution(msg);
 
-        verify(eventos).processarOsCriada(id, 10L, null, null, null);
+        verify(eventos).processarDoOsExecution(any(EnvelopeEntrada.class));
     }
 
     @Test
-    void demaisEventosEncaminhamOsId() {
-        listener.aoConfirmarPagamento(msg("{\"osId\":10}"));
-        listener.aoCancelarOs(msg("{\"osId\":11}"));
-        listener.aoEstornarPagamento(msg("{\"osId\":12}"));
+    void pagamentoConfirmadoRoteiaPraBillingExecution() {
+        var msg = envBillingExecution("PAGAMENTO_CONFIRMADO", "{\"osId\":10}");
+        listener.consumirFilaBillingExecution(msg);
 
-        verify(eventos).processarPagamentoConfirmado(id, 10L);
-        verify(eventos).processarOsCancelada(id, 11L);
-        verify(eventos).processarPagamentoEstornado(id, 12L);
+        verify(eventos).processarDoBillingExecution(any(EnvelopeEntrada.class));
     }
 
     @Test
-    void mensagemInvalidaLancaBadRequestSemProcessar() {
-        assertThatThrownBy(() -> listener.aoCriarOs("não é json")).isInstanceOf(BadRequestException.class);
-        assertThatThrownBy(() -> listener.aoCriarOs("{\"eventId\":\"nao-uuid\",\"payload\":{\"osId\":1}}"))
-                .isInstanceOf(BadRequestException.class);
-        assertThatThrownBy(() -> listener.aoCriarOs("{\"eventId\":\"" + id + "\"}")).isInstanceOf(BadRequestException.class);
-        assertThatThrownBy(() -> listener.aoCriarOs("{\"eventId\":\"" + id + "\",\"payload\":{\"x\":1}}"))
-                .isInstanceOf(BadRequestException.class);
-        assertThatThrownBy(() -> listener.aoCriarOs("{\"payload\":{\"osId\":1}}")).isInstanceOf(BadRequestException.class);
+    void pagamentoFalhDouEstornadoRoteiaParaBillingExecution() {
+        var msgFalhou = envBillingExecution("PAGAMENTO_FALHOU", "{\"osId\":10}");
+        var msgEstornado = envBillingExecution("PAGAMENTO_ESTORNADO", "{\"osId\":11}");
+
+        listener.consumirFilaBillingExecution(msgFalhou);
+        listener.consumirFilaBillingExecution(msgEstornado);
+
+        verify(eventos, times(2)).processarDoBillingExecution(any(EnvelopeEntrada.class));
+    }
+
+    @Test
+    void mensagemInvalidaLancaBadRequest() {
+        assertThatThrownBy(() -> listener.consumirFilaOsExecution("não é json")).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> listener.consumirFilaOsExecution("{\"eventId\":\"nao-uuid\"}")).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> listener.consumirFilaOsExecution("{\"eventId\":\"" + id + "\"}")).isInstanceOf(BadRequestException.class);
+
+        verifyNoInteractions(eventos);
+    }
+
+    @Test
+    void payloadAusenterLancaBadRequest() {
+        var semPayload = "{\"eventId\":\"%s\",\"type\":\"OS_CRIADA\",\"version\":1}".formatted(id);
+        assertThatThrownBy(() -> listener.consumirFilaOsExecution(semPayload)).isInstanceOf(BadRequestException.class);
 
         verifyNoInteractions(eventos);
     }

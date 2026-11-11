@@ -19,40 +19,34 @@ public class EventoEntradaListener {
         this.mapper = mapper;
     }
 
-    @SqsListener("${execution.sqs.os-criada}")
-    public void aoCriarOs(String mensagem) {
-        EnvelopeEntrada e = ler(mensagem);
-        eventos.processarOsCriada(e.eventId(), e.osId(), e.texto("solicitacao"),
-                e.texto("veiculo", "placa"), e.texto("veiculo", "modelo"));
+    @SqsListener("${execution.sqs.os-execution}")
+    public void consumirFilaOsExecution(String mensagem) {
+        EnvelopeEntrada envelope = ler(mensagem);
+        eventos.processarDoOsExecution(envelope);
     }
 
-    @SqsListener("${execution.sqs.pagamento-confirmado}")
-    public void aoConfirmarPagamento(String mensagem) {
-        EnvelopeEntrada e = ler(mensagem);
-        eventos.processarPagamentoConfirmado(e.eventId(), e.osId());
-    }
-
-    @SqsListener("${execution.sqs.os-cancelada}")
-    public void aoCancelarOs(String mensagem) {
-        EnvelopeEntrada e = ler(mensagem);
-        eventos.processarOsCancelada(e.eventId(), e.osId());
-    }
-
-    @SqsListener("${execution.sqs.pagamento-estornado}")
-    public void aoEstornarPagamento(String mensagem) {
-        EnvelopeEntrada e = ler(mensagem);
-        eventos.processarPagamentoEstornado(e.eventId(), e.osId());
+    @SqsListener("${execution.sqs.billing-execution}")
+    public void consumirFilaBillingExecution(String mensagem) {
+        EnvelopeEntrada envelope = ler(mensagem);
+        eventos.processarDoBillingExecution(envelope);
     }
 
     private EnvelopeEntrada ler(String mensagem) {
         try {
             var raiz = mapper.readTree(mensagem);
             UUID eventId = UUID.fromString(raiz.path("eventId").asString());
+            String type = raiz.path("type").asString();
             var payload = raiz.path("payload");
-            if (payload.isMissingNode() || !payload.hasNonNull("osId")) {
-                throw new BadRequestException("Mensagem sem payload.osId!");
+            
+            if (payload.isMissingNode()) {
+                throw new BadRequestException("Mensagem sem payload!");
             }
-            return new EnvelopeEntrada(eventId, raiz.path("type").asString(), payload);
+            
+            int version = raiz.path("version").asInt();
+            String occurredAt = raiz.path("occurredAt").asString();
+            String correlationId = raiz.path("correlationId").asString();
+            
+            return new EnvelopeEntrada(eventId, type, payload, version, occurredAt, correlationId);
         } catch (IllegalArgumentException | tools.jackson.core.JacksonException e) {
             throw new BadRequestException("Mensagem inválida: " + e.getMessage());
         }
