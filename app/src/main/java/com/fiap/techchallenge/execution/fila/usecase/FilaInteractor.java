@@ -15,6 +15,7 @@ import com.fiap.techchallenge.execution.mensageria.domain.TipoEvento;
 import com.fiap.techchallenge.execution.mensageria.usecase.EventoSaidaGateway;
 import com.fiap.techchallenge.execution.observabilidade.ExecucaoEventLogger;
 import com.fiap.techchallenge.execution.servico.usecase.ServicoUseCase;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @Transactional
 public class FilaInteractor implements FilaUseCase {
@@ -75,12 +77,16 @@ public class FilaInteractor implements FilaUseCase {
     @Override
     public ItemFila registrarOsCriada(Long osId, String solicitacao, String criadaEm, Long clienteId, Long veiculoId, String correlationId,
                                       String veiculoPlaca, String veiculoModelo) {
+        log.info("Item da fila registrado para OS_CRIADA: osId={}, solicitacao={}, criadaEm={}, clienteId={}, veiculoId={}, correlationId={}, veiculoPlaca={}, veiculoModelo={}",
+                osId, solicitacao, criadaEm, clienteId, veiculoId, correlationId, veiculoPlaca, veiculoModelo);
+
         return filaGateway.buscarPorOsId(osId).orElseGet(() -> {
             ItemFila item = ItemFila.criar(osId, solicitacao, criadaEm, clienteId, veiculoId, correlationId, agora());
             item.setVeiculoPlaca(veiculoPlaca);
             item.setVeiculoModelo(veiculoModelo);
             return filaGateway.salvar(item);
-        });
+            });
+
     }
 
     @Override

@@ -3,11 +3,13 @@ package com.fiap.techchallenge.execution.mensageria.adapter.listener;
 import com.fiap.techchallenge.execution.exception.BadRequestException;
 import com.fiap.techchallenge.execution.mensageria.usecase.EventoEntradaUseCase;
 import io.awspring.cloud.sqs.annotation.SqsListener;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.UUID;
 
+@Slf4j
 @Component
 public class EventoEntradaListener {
 
@@ -21,12 +23,14 @@ public class EventoEntradaListener {
 
     @SqsListener("${execution.sqs.os-execution}")
     public void consumirFilaOsExecution(String mensagem) {
+        log.info("Mensagem recebida na fila OS_EXECUTION: {}", mensagem);
         EnvelopeEntrada envelope = ler(mensagem);
         eventos.processarDoOsExecution(envelope);
     }
 
     @SqsListener("${execution.sqs.billing-execution}")
     public void consumirFilaBillingExecution(String mensagem) {
+        log.info("Mensagem recebida na fila BILLING_EXECUTION: {}", mensagem);
         EnvelopeEntrada envelope = ler(mensagem);
         eventos.processarDoBillingExecution(envelope);
     }
