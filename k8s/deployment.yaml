@@ -19,8 +19,8 @@ spec:
       labels:
         app: execution-service
     spec:
-      # A aplicacao nao usa a API do Kubernetes; nao precisa do token do service account
-      automountServiceAccountToken: false
+      # AWS Academy (IRSA via ServiceAccount): as credenciais vêm da role dos nós via IMDS. Veja serviceaccount.yaml.
+      serviceAccountName: execution-service
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
