@@ -1,4 +1,4 @@
-package com.fiap.techchallenge.execution.observabilidade;
+package com.fiap.techchallenge.execution.mensageria.usecase;
 
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.spi.LoggingEventBuilder;
@@ -12,11 +12,11 @@ import java.time.Instant;
 
 @Component
 @Slf4j
-public class ExecucaoEventLogger {
+public class ExecucaoEventComponent {
 
     private final ApplicationEventPublisher eventPublisher;
 
-    public ExecucaoEventLogger(ApplicationEventPublisher eventPublisher) {
+    public ExecucaoEventComponent(ApplicationEventPublisher eventPublisher) {
         this.eventPublisher = eventPublisher;
     }
 

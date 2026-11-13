@@ -2,6 +2,7 @@ package com.fiap.techchallenge.execution.mensageria.adapter.listener;
 
 import com.fiap.techchallenge.execution.exception.BadRequestException;
 import com.fiap.techchallenge.execution.mensageria.usecase.EventoEntradaUseCase;
+import com.fiap.techchallenge.execution.observabilidade.EventoLogger;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -17,7 +18,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 class EventoEntradaListenerTest {
 
     final EventoEntradaUseCase eventos = mock(EventoEntradaUseCase.class);
-    final EventoEntradaListener listener = new EventoEntradaListener(eventos, JsonMapper.builder().build());
+    final EventoLogger logger = mock(EventoLogger.class);
+    final EventoEntradaListener listener = new EventoEntradaListener(eventos, JsonMapper.builder().build(), logger);
     final UUID id = UUID.randomUUID();
 
     private String envOsExecution(String type, String payload) {

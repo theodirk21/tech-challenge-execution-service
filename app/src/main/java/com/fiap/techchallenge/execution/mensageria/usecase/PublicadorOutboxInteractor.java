@@ -1,7 +1,6 @@
 package com.fiap.techchallenge.execution.mensageria.usecase;
 
 import com.fiap.techchallenge.execution.mensageria.domain.OutboxEvent;
-import com.fiap.techchallenge.execution.observabilidade.ExecucaoEventLogger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,11 +13,11 @@ public class PublicadorOutboxInteractor implements PublicadorOutboxUseCase {
 
     private final OutboxGateway outbox;
     private final MensagemPublisher publisher;
-    private final ExecucaoEventLogger logger;
+    private final ExecucaoEventComponent logger;
     private final Clock clock;
 
     public PublicadorOutboxInteractor(OutboxGateway outbox, MensagemPublisher publisher,
-                                      ExecucaoEventLogger logger, Clock clock) {
+                                      ExecucaoEventComponent logger, Clock clock) {
         this.outbox = outbox;
         this.publisher = publisher;
         this.logger = logger;

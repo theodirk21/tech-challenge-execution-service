@@ -12,7 +12,8 @@ import com.fiap.techchallenge.execution.exception.NotFoundException;
 import com.fiap.techchallenge.execution.fila.domain.ItemFila;
 import com.fiap.techchallenge.execution.fila.domain.StatusFila;
 import com.fiap.techchallenge.execution.mensageria.usecase.EventoSaidaGateway;
-import com.fiap.techchallenge.execution.observabilidade.ExecucaoEventLogger;
+import com.fiap.techchallenge.execution.mensageria.usecase.ExecucaoEventComponent;
+import com.fiap.techchallenge.execution.observabilidade.EventoLogger;
 import com.fiap.techchallenge.execution.servico.usecase.ServicoUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,7 +50,10 @@ class FilaInteractorTest {
     @Mock EstoqueUseCase estoque;
     @Mock ServicoUseCase servicos;
     @Mock EventoSaidaGateway eventos;
-    @Mock ExecucaoEventLogger logger;
+    @Mock
+    ExecucaoEventComponent eventComponent;
+    @Mock
+    EventoLogger logger;
 
     FilaInteractor interactor;
 
@@ -58,7 +62,7 @@ class FilaInteractorTest {
 
     @BeforeEach
     void setUp() {
-        interactor = new FilaInteractor(filaGateway, diagnosticoGateway, estoque, servicos, eventos, logger, CLOCK);
+        interactor = new FilaInteractor(filaGateway, diagnosticoGateway, estoque, servicos, eventos, eventComponent, CLOCK, logger);
         when(filaGateway.salvar(any())).thenAnswer(i -> i.getArgument(0));
     }
 
@@ -104,7 +108,7 @@ class FilaInteractorTest {
 
         assertThat(r.getStatus()).isEqualTo(StatusFila.EM_DIAGNOSTICO);
         assertThat(r.getMecanicoId()).isEqualTo(2L);
-        verify(logger).registrarStatusAlterado(eq(OS), eq("AGUARDANDO_DIAGNOSTICO"), eq("EM_DIAGNOSTICO"), anyLong(), any());
+        verify(eventComponent).registrarStatusAlterado(eq(OS), eq("AGUARDANDO_DIAGNOSTICO"), eq("EM_DIAGNOSTICO"), anyLong(), any());
     }
 
     @Test
