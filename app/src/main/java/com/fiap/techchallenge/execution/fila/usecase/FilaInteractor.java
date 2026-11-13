@@ -13,7 +13,8 @@ import com.fiap.techchallenge.execution.fila.domain.ItemFila;
 import com.fiap.techchallenge.execution.fila.domain.StatusFila;
 import com.fiap.techchallenge.execution.mensageria.domain.TipoEvento;
 import com.fiap.techchallenge.execution.mensageria.usecase.EventoSaidaGateway;
-import com.fiap.techchallenge.execution.observabilidade.ExecucaoEventLogger;
+import com.fiap.techchallenge.execution.mensageria.usecase.ExecucaoEventComponent;
+import com.fiap.techchallenge.execution.observabilidade.EventoLogger;
 import com.fiap.techchallenge.execution.servico.usecase.ServicoUseCase;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,19 +36,22 @@ public class FilaInteractor implements FilaUseCase {
     private final EstoqueUseCase estoque;
     private final ServicoUseCase servicos;
     private final EventoSaidaGateway eventos;
-    private final ExecucaoEventLogger logger;
+    private final ExecucaoEventComponent event;
     private final Clock clock;
+    private final EventoLogger eventoLogger;
 
     public FilaInteractor(FilaGateway filaGateway, DiagnosticoGateway diagnosticoGateway, EstoqueUseCase estoque,
-                          ServicoUseCase servicos, EventoSaidaGateway eventos, ExecucaoEventLogger logger,
-                          Clock clock) {
+                          ServicoUseCase servicos, EventoSaidaGateway eventos, ExecucaoEventComponent event,
+                          Clock clock, EventoLogger eventoLogger) {
         this.filaGateway = filaGateway;
         this.diagnosticoGateway = diagnosticoGateway;
         this.estoque = estoque;
         this.servicos = servicos;
         this.eventos = eventos;
-        this.logger = logger;
+        this.eventoLogger = eventoLogger;
+        this.event = event;
         this.clock = clock;
+
     }
 
     @Override
@@ -77,8 +81,7 @@ public class FilaInteractor implements FilaUseCase {
     @Override
     public ItemFila registrarOsCriada(Long osId, String solicitacao, String criadaEm, Long clienteId, Long veiculoId, String correlationId,
                                       String veiculoPlaca, String veiculoModelo) {
-        log.info("Item da fila registrado para OS_CRIADA: osId={}, solicitacao={}, criadaEm={}, clienteId={}, veiculoId={}, correlationId={}, veiculoPlaca={}, veiculoModelo={}",
-                osId, solicitacao, criadaEm, clienteId, veiculoId, correlationId, veiculoPlaca, veiculoModelo);
+        eventoLogger.logOsCriada(osId, correlationId, veiculoPlaca, veiculoModelo);
 
         return filaGateway.buscarPorOsId(osId).orElseGet(() -> {
             ItemFila item = ItemFila.criar(osId, solicitacao, criadaEm, clienteId, veiculoId, correlationId, agora());
@@ -136,6 +139,7 @@ public class FilaInteractor implements FilaUseCase {
             item.falhar(agora());
             eventos.publicar(TipoEvento.EXECUCAO_FALHOU, osId,
                     Map.of("osId", osId, "motivo", "SEM_ESTOQUE", "detalhe", reserva.detalhe()));
+            eventoLogger.logConfirmacaoPagamento(osId, item.getCorrelationId(), reserva.detalhe(), "Pagamento falhou por falta de estoque");
             return salvarRegistrando(item, anterior);
         }
 
@@ -144,6 +148,7 @@ public class FilaInteractor implements FilaUseCase {
                 .filter(i -> i.getTipo() == TipoItemDiagnostico.SERVICO)
                 .map(DiagnosticoItem::getRefId).toList());
         eventos.publicar(TipoEvento.ESTOQUE_RESERVADO, osId, Map.of("osId", osId));
+        eventoLogger.logConfirmacaoPagamento(osId, item.getCorrelationId(), reserva.detalhe(), "Pagamento confirmado");
         return salvarRegistrando(item, anterior);
     }
 
@@ -205,7 +210,7 @@ public class FilaInteractor implements FilaUseCase {
     private ItemFila salvarRegistrando(ItemFila item, StatusFila anterior) {
         ItemFila salvo = filaGateway.salvar(item);
         if (anterior != salvo.getStatus()) {
-            logger.registrarStatusAlterado(salvo.getOsId(), anterior.name(), salvo.getStatus().name(), 0L,
+            event.registrarStatusAlterado(salvo.getOsId(), anterior.name(), salvo.getStatus().name(), 0L,
                     Instant.now(clock));
         }
         return salvo;

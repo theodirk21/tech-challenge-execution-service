@@ -1,7 +1,6 @@
 package com.fiap.techchallenge.execution.mensageria.usecase;
 
 import com.fiap.techchallenge.execution.mensageria.domain.OutboxEvent;
-import com.fiap.techchallenge.execution.observabilidade.ExecucaoEventLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,7 +29,8 @@ class PublicadorOutboxInteractorTest {
 
     @Mock OutboxGateway outbox;
     @Mock MensagemPublisher publisher;
-    @Mock ExecucaoEventLogger logger;
+    @Mock
+    ExecucaoEventComponent logger;
 
     PublicadorOutboxInteractor interactor;
 

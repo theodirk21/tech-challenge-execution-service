@@ -205,6 +205,37 @@ Relatório HTML em `app/build/reports/cucumber/cucumber.html`.
 
 ---
 
+## Observabilidade e Logging
+
+### Padrão de Logs Estruturados
+
+Todos os logs da aplicação seguem um **padrão estruturado em JSON** com campos-chave para rastreamento e auditoria:
+
+| Campo | Descrição | Exemplo |
+|---|---|---|
+| `service` | Nome do serviço | `"execution-service"` |
+| `correlationId` | ID de rastreamento da OS (correlação entre eventos) | `"123e4567-e89b-12d3-a456-426614174000"` |
+| `orderId` | ID da Ordem de Serviço | `10` |
+| `eventId` / `eventType` | Evento envolvido no processamento | `"OS_CRIADA"` |
+| `operation` | Ação executada | `"receber_evento"`, `"processar_evento"`, `"confirmar_pagamento"` |
+| `outcome` | Resultado | `"sucesso"`, `"falha"`, `"recebida"` |
+| `message` | Descrição em português | `"Mensagem recebida na fila os-execution"` |
+
+**Exemplo de log em produção:**
+```json
+{
+  "@timestamp": "2026-11-13T16:17:01.523Z",
+  "service": "execution-service",
+  "correlationId": "10",
+  "orderId": 10,
+  "eventId": "501ddf7b-228e-497c-8b4f-84124f0d35dd",
+  "eventType": "ESTOQUE_RESERVADO",
+  "operation": "processar_evento",
+  "outcome": "confirmado",
+  "message": "Reserva de estoque registrada no histórico da OS"
+}
+```
+----
 ## Build da Imagem Docker
 
 ```bash

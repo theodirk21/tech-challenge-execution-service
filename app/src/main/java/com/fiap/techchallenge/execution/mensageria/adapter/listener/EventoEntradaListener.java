@@ -2,6 +2,7 @@ package com.fiap.techchallenge.execution.mensageria.adapter.listener;
 
 import com.fiap.techchallenge.execution.exception.BadRequestException;
 import com.fiap.techchallenge.execution.mensageria.usecase.EventoEntradaUseCase;
+import com.fiap.techchallenge.execution.observabilidade.EventoLogger;
 import io.awspring.cloud.sqs.annotation.SqsListener;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -15,23 +16,32 @@ public class EventoEntradaListener {
 
     private final EventoEntradaUseCase eventos;
     private final JsonMapper mapper;
+    private final EventoLogger eventoLogger;
 
-    public EventoEntradaListener(EventoEntradaUseCase eventos, JsonMapper mapper) {
+    public EventoEntradaListener(EventoEntradaUseCase eventos, JsonMapper mapper, EventoLogger eventoLogger) {
         this.eventos = eventos;
         this.mapper = mapper;
+        this.eventoLogger = eventoLogger;
     }
 
     @SqsListener("${execution.sqs.os-execution}")
     public void consumirFilaOsExecution(String mensagem) {
-        log.info("Mensagem recebida na fila OS_EXECUTION: {}", mensagem);
         EnvelopeEntrada envelope = ler(mensagem);
+        eventoLogger.logRecebimentoMensagem("os-execution",
+                envelope.correlationId(),
+                String.valueOf(envelope.eventId()),
+                envelope.type());
+
         eventos.processarDoOsExecution(envelope);
     }
 
     @SqsListener("${execution.sqs.billing-execution}")
     public void consumirFilaBillingExecution(String mensagem) {
-        log.info("Mensagem recebida na fila BILLING_EXECUTION: {}", mensagem);
         EnvelopeEntrada envelope = ler(mensagem);
+        eventoLogger.logRecebimentoMensagem("billing-execution",
+                envelope.correlationId(),
+                String.valueOf(envelope.eventId()),
+                envelope.type());
         eventos.processarDoBillingExecution(envelope);
     }
 
