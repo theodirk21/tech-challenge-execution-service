@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: app-config
-  namespace: tech-challenge
+  namespace: execution-service
 data:
   DB_NAME: "execution"
   SPRING_JPA_SHOW_SQL: "false"

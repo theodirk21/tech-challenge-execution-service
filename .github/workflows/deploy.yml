@@ -17,7 +17,7 @@ env:
   AWS_REGION: us-east-1
   JAVA_VERSION: "21"
   CLUSTER_NAME: tech-challenge
-  NAMESPACE: tech-challenge
+  NAMESPACE: execution-service
   ECR_REPOSITORY: execution-service
 
 jobs:
