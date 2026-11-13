@@ -160,9 +160,6 @@ jobs:
             --from-literal=SPRING_DATASOURCE_USERNAME="${DB_USER}" \
             --from-literal=SPRING_DATASOURCE_PASSWORD="${DB_PASSWORD}" \
             --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
-            --from-literal=AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
-            --from-literal=AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-            --from-literal=AWS_SESSION_TOKEN="${{ secrets.AWS_SESSION_TOKEN }}" \
             --dry-run=client -o yaml | kubectl apply -f -
       - name: Injetar Imagem e Aplicar Manifestos no EKS
         env:
