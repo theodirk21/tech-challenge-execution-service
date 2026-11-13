@@ -56,6 +56,8 @@ jobs:
       - name: Checkout do Código
         uses: actions/checkout@v4
 
+
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -74,22 +76,6 @@ jobs:
       - name: Login no Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Garantir Repositório ECR
-        run: |
-          aws ecr describe-repositories --repository-names "${ECR_REPOSITORY}" > /dev/null 2>&1 || \
-            aws ecr create-repository --repository-name "${ECR_REPOSITORY}" --image-scanning-configuration scanOnPush=true
-
-      - name: Validar recursos AWS existentes
-        env:
-          SNS_TOPICO_ARN: ${{ vars.SNS_TOPICO_ARN }}
-          SQS_OS_EXECUTION: ${{ vars.SQS_OS_EXECUTION }}
-          SQS_BILLING_EXECUTION: ${{ vars.SQS_BILLING_EXECUTION }}
-        run: |
-          if [ -z "${SNS_TOPICO_ARN}" ] || [ -z "${SQS_OS_EXECUTION}" ] || [ -z "${SQS_BILLING_EXECUTION}" ]; then
-            echo "::error::Defina SNS_TOPICO_ARN, SQS_OS_EXECUTION e SQS_BILLING_EXECUTION como variáveis do repositório."
-            exit 1
-          fi
 
       - name: Build e Push da Imagem Docker
         env:
