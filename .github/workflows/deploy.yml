@@ -103,6 +103,9 @@ jobs:
       - name: Garantir Namespace
         run: kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Aplicar ServiceAccount
+        run: kubectl apply -f k8s/serviceaccount.yaml
+
       - name: Aplicar ConfigMap
         env:
           SNS_TOPICO_ARN: ${{ vars.SNS_TOPICO_ARN }}
