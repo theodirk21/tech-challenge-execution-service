@@ -83,21 +83,6 @@ spec:
                   key: JWT_SECRET
             - name: SPRING_PROFILES_ACTIVE
               value: "prod"
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: execution-secrets
-                  key: AWS_ACCESS_KEY_ID
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: execution-secrets
-                  key: AWS_SECRET_ACCESS_KEY
-            - name: AWS_SESSION_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: execution-secrets
-                  key: AWS_SESSION_TOKEN
             - name: AWS_REGION
               valueFrom:
                 configMapKeyRef:
