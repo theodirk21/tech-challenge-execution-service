@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: execution-service
-  namespace: tech-challenge
+  namespace: execution-service
 spec:
   replicas: 2
   strategy:
