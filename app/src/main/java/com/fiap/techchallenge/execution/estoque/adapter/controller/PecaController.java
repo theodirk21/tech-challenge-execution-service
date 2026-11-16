@@ -19,7 +19,7 @@ import java.net.URI;
 import java.util.List;
 
 @RestController
-@RequestMapping({"/api/peca", "/api/peca/"})
+@RequestMapping("/api/peca")
 @Tag(name = "Peças", description = "Estoque de peças do serviço de execução")
 public class PecaController {
 

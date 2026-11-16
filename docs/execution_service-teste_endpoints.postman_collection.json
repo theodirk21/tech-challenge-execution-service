@@ -1,0 +1,505 @@
+{
+  "info": {
+    "_postman_id": "d03a3018-e6cc-4273-9f8f-4872504ba44b",
+    "name": "Execution Service - Teste de Endpoints",
+    "description": "Testes completos com JWT válido",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "24506293"
+  },
+  "item": [
+    {
+      "name": "1️⃣ PEÇAS - Cadastrar peça",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nome\": \"Pastilha de freio\",\n  \"quantidade\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/peca",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "peca"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2️⃣ PEÇAS - Listar peças",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "accept",
+            "value": "*/*"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{bearer_token_0z6t}}",
+            "disabled": true
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/peca",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "peca"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3️⃣ PEÇAS - Consultar peça",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{bearer_token_18fr}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/peca/1",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "peca",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4️⃣ PEÇAS - Repor estoque",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{bearer_token_18fr}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantidade\": 5\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/peca/1/reposicao",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "peca",
+            "1",
+            "reposicao"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5️⃣ FILA - Listar fila",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{bearer_token_18fr}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/execucao/fila",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "execucao",
+            "fila"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6️⃣ FILA - Consultar OS",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{bearer_token_18fr}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/execucao/1001",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "execucao",
+            "1001"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7️⃣ DIAGNÓSTICO - Iniciar diagnóstico",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mecanicoId\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/execucao/1001/diagnostico/iniciar",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "execucao",
+            "1001",
+            "diagnostico",
+            "iniciar"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "❌ TESTE: Iniciar diagnóstico 2x (409 Conflict)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{bearer_token_18fr}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mecanicoId\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/execucao/1001/diagnostico/iniciar",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "execucao",
+            "1001",
+            "diagnostico",
+            "iniciar"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8️⃣ DIAGNÓSTICO - Listar diagnóstico",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/execucao/1001/diagnostico",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "execucao",
+            "1001",
+            "diagnostico"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "9️⃣ DIAGNÓSTICO - Concluir diagnóstico",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{bearer_token_18fr}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"itens\": [\n    {\n      \"tipo\": \"PECA\",\n      \"refId\": 1,\n      \"quantidade\": 2\n    },\n    {\n      \"tipo\": \"SERVICO\",\n      \"refId\": 1,\n      \"quantidade\": 1\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/execucao/1001/diagnostico/concluir",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "execucao",
+            "1001",
+            "diagnostico",
+            "concluir"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "🔟 EXECUÇÃO - Iniciar próxima execução",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{bearer_token_18fr}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mecanicoId\": 7\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/execucao/iniciar",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "execucao",
+            "iniciar"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "1️⃣1️⃣ EXECUÇÃO - Finalizar execução",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/execucao/1005/finalizar",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "execucao",
+            "1005",
+            "finalizar"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "1️⃣3️⃣ EXECUÇÃO - Registrar falha",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{bearer_token_18fr}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"motivo\": \"Peça danificada\",\n  \"detalhe\": \"Freio com vazamento\"\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/execucao/1003/falha",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "execucao",
+            "1003",
+            "falha"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "1️⃣3️⃣ SERVIÇOS - Listar serviços",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{bearer_token_18fr}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/execucao/1002/servicos",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "execucao",
+            "1002",
+            "servicos"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{bearer_token_18fr}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "packages": {},
+        "requests": {},
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "packages": {},
+        "requests": {},
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "bearer_token_18fr",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_18eu",
+      "secret": true
+    },
+    {
+      "key": "bearer_token_0z6t",
+      "secret": true
+    }
+  ]
+}
