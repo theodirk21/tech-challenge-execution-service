@@ -632,6 +632,9 @@ docker compose --profile tools up -d sonarqube
 ./gradlew test jacocoTestReport sonar -Dsonar.token=<TOKEN>
 ```
 
+[![Comprovação de execução Sonar](docs/img_3.png)](docs/img_3.png)
+
+
 ### Segurança
 
 - **Autenticação e autorização:** JWT stateless (HMAC-SHA256) com controle por perfil (`MECANICO`, `ATENDENTE`, `GERENTE`) em cada endpoint.
