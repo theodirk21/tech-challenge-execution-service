@@ -52,30 +52,111 @@ Um dos três microsserviços (`os-service`, `billing-service` e `execution-servi
 ## Estrutura do Repositório
 
 ```
+tech-challenge-execution-service/
+
 .github/workflows/
 ├── pr.yml          CI: testes, cobertura JaCoCo e build check da imagem Docker
 └── deploy.yml      CD: testes, build/push no ECR e deploy no EKS via kubectl
+
 app/
 ├── src/main/java/com/fiap/techchallenge/execution/
 │   ├── fila/              fila de execução (ItemFila) e casos de uso da saga
+│   │   ├── adapter/
+│   │   │   ├── controller/     ExecucaoController (REST endpoints)
+│   │   │   └── gateway/        FilaGatewayImpl (JPA persistence)
+│   │   ├── domain/
+│   │   │   ├── ItemFila.java                    Entidade: ordem de execução
+│   │   │   └── StatusFila.java                  Enum: AGUARDANDO_*, NA_FILA, etc
+│   │   ├── usecase/
+│   │   │   ├── FilaUseCase.java                 Interface dos casos de uso
+│   │   │   ├── FilaInteractor.java              Implementação (orquestração)
+│   │   │   └── FilaGateway.java                 Interface de persistência
+│   │   └── framework/
+│   │       └── persistence/                     ItemFilaJpaRepository (Spring Data)
+│   │
 │   ├── diagnostico/       itens do diagnóstico (peças e serviços)
+│   │   ├── adapter/
+│   │   │   ├── controller/
+│   │   │   └── gateway/
+│   │   ├── domain/
+│   │   │   ├── DiagnosticoItem.java
+│   │   │   └── TipoDiagnostico.java             Enum: PECA, SERVICO
+│   │   ├── usecase/
+│   │   │   ├── DiagnosticoUseCase.java
+│   │   │   ├── DiagnosticoInteractor.java
+│   │   │   └── DiagnosticoGateway.java
+│   │   └── framework/
+│   │       └── persistence/
+│   │
 │   ├── estoque/           estoque de peças e reservas
+│   │   ├── adapter/
+│   │   │   ├── controller/     PecaController (GET/POST)
+│   │   │   └── gateway/
+│   │   ├── domain/
+│   │   │   ├── Peca.java                        Entidade: peça em estoque
+│   │   │   ├── ReservaPeca.java                 Entidade: reserva de peça
+│   │   │   └── StatusReserva.java               Enum: ATIVA, LIBERADA, CANCELADA
+│   │   ├── usecase/
+│   │   │   ├── EstoqueUseCase.java
+│   │   │   ├── EstoqueInteractor.java
+│   │   │   └── EstoqueGateway.java
+│   │   └── framework/
+│   │       └── persistence/
+│   │
 │   ├── servico/           serviços executados na OS
+│   │   ├── adapter/
+│   │   │   ├── controller/
+│   │   │   └── gateway/
+│   │   ├── domain/
+│   │   │   ├── Servico.java                     Entidade: serviço da OS
+│   │   │   └── StatusServico.java               Enum: PENDENTE, EXECUTADO, CANCELADO
+│   │   ├── usecase/
+│   │   │   ├── ServicoUseCase.java
+│   │   │   ├── ServicoInteractor.java
+│   │   │   └── ServicoGateway.java
+│   │   └── framework/
+│   │       └── persistence/
+│   │
 │   ├── mensageria/        listeners SQS, outbox, publisher e idempotência
+│   │   ├── adapter/
+│   │   │   └── listener/        EventoEntradaListener (SQS consumer)
+│   │   ├── domain/
+│   │   │   ├── Evento.java                      Envelope de evento
+│   │   │   ├── TipoEvento.java                  Enum: OS_CRIADA, PAGAMENTO_*, etc
+│   │   │   ├── ProcessedEvent.java              Idempotência (eventId)
+│   │   │   └── OutboxEvent.java                 Outbox para SNS
+│   │   ├── usecase/
+│   │   │   ├── EventoEntradaUseCase.java
+│   │   │   ├── EventoEntradaInteractor.java     Switch nos 5 tipos
+│   │   │   └── EventoEntradaGateway.java
+│   │   └── framework/
+│   │       ├── persistence/                     Repositórios JPA
+│   │       └── publisher/                       SNS Publisher (scheduler outbox)
+│   │
 │   ├── security/          filtro JWT e configuração Spring Security
-│   ├── config/ exception/ observabilidade/
+│   │   ├── JwtAuthenticationFilter.java         Filtro JWT
+│   │   ├── JwtUtil.java                         Utilitário JWT (HMAC-SHA256)
+│   │   └── SecurityConfig.java                  Configuração Spring Security
+│   │
+│   ├── config/            configurações gerais
+│   ├── exception/         GlobalExceptionHandler
+│   ├── observabilidade/   logging estruturado, métricas
 │   └── ExecutionServiceApplication.java
+│
 ├── src/main/resources/
 │   ├── application.properties       configuração e variáveis de ambiente
 │   ├── application-prod.properties  perfil de produção (SQS/SNS reais, sem LocalStack)
 │   ├── logback-spring.xml           logs JSON em produção, colorido em dev
 │   └── db/migration/                migration Flyway (V1)
+│
 ├── src/test/
 │   ├── java/.../bdd/                steps e configuração do Cucumber (BDD)
 │   ├── resources/features/          cenários Gherkin (execucao.feature)
 │   └── ...                          testes unitários, de integração e ponta a ponta
+│
 ├── build.gradle                     dependências, JaCoCo (mínimo 80%) e SonarQube
 └── Dockerfile                       multi-stage build para linux/amd64
+
 k8s/
 ├── serviceaccount.yaml           ServiceAccount do pod (acesso à AWS)
 ├── configmap.yaml                variáveis não-sensíveis de configuração
@@ -83,12 +164,19 @@ k8s/
 ├── service.yaml                  Service LoadBalancer — AWS NLB, porta 80 → 8080
 ├── hpa.yaml                      HPA: 2 a 10 réplicas (CPU 70%, memória 80%)
 └── pod-disruption-budget.yaml    PDB: minAvailable 1
+
 localstack/init-sqs.sh            cria no LocalStack as filas de entrada (com DLQ) e o tópico SNS
+
 docker-compose.yml                stack local: App + PostgreSQL 16 + LocalStack (SQS/SNS) + SonarQube
+
 docs/
 ├── EVENTOS.md                    contrato dos eventos trocados entre os serviços
 └── img.png                       evidência de cobertura (JaCoCo)
-SOAT - Fase 4 - Tech challenge.pdf  enunciado da fase
+
+README.md                          documentação completa do projeto
+settings.gradle                    configuração Gradle
+gradlew                           Gradle wrapper (Linux/Mac)
+gradlew.bat                       Gradle wrapper (Windows)
 ```
 
 Cada módulo de negócio segue a Clean Architecture do monolito: `domain` (regras puras) → `usecase` (interactors e gateways) → `adapter` (controllers e gateways) → `framework` (JPA).

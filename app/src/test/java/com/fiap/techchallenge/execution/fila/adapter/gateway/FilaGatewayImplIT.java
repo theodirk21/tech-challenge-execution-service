@@ -8,14 +8,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(FilaGatewayImpl.class)
+@ActiveProfiles("test")
 class FilaGatewayImplIT extends PostgresContainerSupport {
 
     @Autowired
@@ -34,10 +37,10 @@ class FilaGatewayImplIT extends PostgresContainerSupport {
 
     @Test
     void salvaEBuscaPreservandoTodosOsCampos() {
-        ItemFila salvo = repo.salvar(ItemFila.criar(100L, "Freio", "2026-11-08T20:41:06Z", 1L, 1L, "16", T0));
+        ItemFila salvo = repo.salvar(ItemFila.criar(5100L, "Freio", "2026-11-08T20:41:06Z", 1L, 1L, "16", T0));
 
         assertThat(salvo.getId()).isNotNull();
-        ItemFila lido = repo.buscarPorOsId(100L).orElseThrow();
+        ItemFila lido = repo.buscarPorOsId(5100L).orElseThrow();
         assertThat(lido.getStatus()).isEqualTo(StatusFila.AGUARDANDO_DIAGNOSTICO);
         assertThat(lido.getSolicitacao()).isEqualTo("Freio");
         assertThat(lido.getEntrouEm()).isEqualTo(T0);
@@ -45,37 +48,37 @@ class FilaGatewayImplIT extends PostgresContainerSupport {
 
     @Test
     void persisteTransicaoDeStatus() {
-        ItemFila item = repo.salvar(ItemFila.criar(101L, "Revisão", "2026-11-08T20:41:06Z", 1L, 1L, "16", T0));
+        ItemFila item = repo.salvar(ItemFila.criar(5101L, "Revisão", "2026-11-08T20:41:06Z", 1L, 1L, "16", T0));
         item.iniciarDiagnostico(7L);
         repo.salvar(item);
 
-        ItemFila lido = repo.buscarPorOsIdComLock(101L).orElseThrow();
+        ItemFila lido = repo.buscarPorOsIdComLock(5101L).orElseThrow();
         assertThat(lido.getStatus()).isEqualTo(StatusFila.EM_DIAGNOSTICO);
         assertThat(lido.getMecanicoId()).isEqualTo(7L);
     }
 
     @Test
     void proximoDaFilaRespeitaPrioridadeEDepoisAntiguidade() {
-        repo.salvar(naFila(201L, 0, T0));
-        repo.salvar(naFila(202L, 5, T0.plusMinutes(10)));
-        repo.salvar(naFila(203L, 5, T0.plusMinutes(5)));
+        repo.salvar(naFila(5201L, 0, T0));
+        repo.salvar(naFila(5202L, 5, T0.plusMinutes(10)));
+        repo.salvar(naFila(5203L, 5, T0.plusMinutes(5)));
 
-        assertThat(repo.proximoDaFilaComLock()).get().extracting(ItemFila::getOsId).isEqualTo(203L);
+        assertThat(repo.proximoDaFilaComLock()).get().extracting(ItemFila::getOsId).isEqualTo(5203L);
     }
 
     @Test
     void proximoDaFilaIgnoraItensForaDaFila() {
-        repo.salvar(ItemFila.criar(301L, "x", "2026-11-08T20:41:06Z", 1L, 1L, "16", T0));
+        repo.salvar(ItemFila.criar(5301L, "x", "2026-11-08T20:41:06Z", 1L, 1L, "16", T0));
 
         assertThat(repo.proximoDaFilaComLock()).isEmpty();
     }
 
     @Test
     void listaPorStatusOrdenado() {
-        repo.salvar(naFila(401L, 0, T0));
-        repo.salvar(naFila(402L, 9, T0.plusMinutes(1)));
+        repo.salvar(naFila(5401L, 0, T0));
+        repo.salvar(naFila(5402L, 9, T0.plusMinutes(1)));
 
         assertThat(repo.listarPorStatus(StatusFila.NA_FILA)).extracting(ItemFila::getOsId)
-                .containsExactly(402L, 401L);
+                .containsExactly(5402L, 5401L);
     }
 }

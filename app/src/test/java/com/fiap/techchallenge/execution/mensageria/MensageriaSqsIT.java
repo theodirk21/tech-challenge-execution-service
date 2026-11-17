@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.Message;
 import tools.jackson.databind.JsonNode;
@@ -26,7 +27,8 @@ import static org.awaitility.Awaitility.await;
 
 /** Fluxo real entre PostgreSQL e SQS (LocalStack): listeners, idempotência, outbox e publisher. */
 @SpringBootTest(properties = "execution.outbox.intervalo-ms=200")
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@ActiveProfiles("test")
 class MensageriaSqsIT extends SqsContainerSupport {
 
     static final String FILA_OS = "os_execution";
